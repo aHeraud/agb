@@ -86,20 +86,17 @@ impl DmgPpu {
 			//Clear pixel
 			self.buffers[buffer_index] = self.shades[0];
 
-			self.buffers[buffer_index] = self.shades[bg_sprites[x] as usize];
+			//self.buffers[buffer_index] = self.shades[bg_sprites[x] as usize];
+			self.buffers[buffer_index] = self.shades[background[x] as usize];
 
-			if background[x] != 0 {
-				self.buffers[buffer_index] = self.shades[background[x] as usize];
+			if background[x] & 0x0F == 0 {
+				//self.buffers[buffer_index] = 0xFF;
+				self.buffers[buffer_index] = self.shades[bg_sprites[x] as usize];
 			}
 
 			if fg_sprites[x] != 0 {
 				self.buffers[buffer_index] = self.shades[fg_sprites[x] as usize];
 			}
-
-			//if background[x] != 0 {
-			//	let bg_shade_index: u8 = (bgp >> (background[x] << 1)) & 3;
-			//	self.buffers[buffer_index] = self.shades[bg_shade_index as usize];
-			//}
 		}
 	}
 
@@ -163,9 +160,8 @@ impl DmgPpu {
 			//Get value for pixel (0..4)
 			let value: u8 = ((tile_1 >> (7 - (x_pos % 8)) << 1) & 2) | ((tile_2 >> (7 - (x_pos % 8))) & 1);
 			let shade_index: u8 = (bgp >> (value << 1)) & 3;
-			if value != 0 {
-				background[x as usize] = shade_index;
-			}
+
+			background[x as usize] = shade_index;
 		}
 	}
 
@@ -203,7 +199,7 @@ impl DmgPpu {
 			let x_flip: bool = sprite_flags & 0x20 == 0x20;
 			let y_flip: bool = sprite_flags & 0x40 == 0x40;
 
-			let layer: u8 = (sprite_flags & 128) >> 7;
+			let layer: u8 = ((!sprite_flags) & 128) >> 7;
 
 			let mut tile_address: u16 = (sprite_tile_number as u16) * 16;
 			let lower_tile_address: u16 = ((sprite_tile_number as u16) | 1) * 16;
@@ -244,11 +240,11 @@ impl DmgPpu {
 
 				let shade = (palette >> (value << 1)) & 3;
 
-				if value != 0 {
-					if layer == 0 {
-						layer0[(x + sprite_x) as usize] = shade;
-					}
-					else {
+				if layer == 0 {
+					layer0[(x + sprite_x) as usize] = shade;
+				}
+				else {
+					if value != 0 {
 						layer1[(x + sprite_x) as usize] = shade;
 					}
 				}
