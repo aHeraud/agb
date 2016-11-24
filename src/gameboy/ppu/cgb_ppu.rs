@@ -102,6 +102,10 @@ impl PPU for CgbPpu {
 		&self.buffer[0..WIDTH*HEIGHT]
 	}
 
+	fn get_framebuffer_mut(&mut self) -> &mut[u32] {
+		&mut self.buffer[0..WIDTH*HEIGHT]
+	}
+
 	fn get_vram(&mut self) -> &mut[u8] {
 		&mut self.vram
 	}

@@ -43,7 +43,7 @@ impl GBC {
 			self.cpu.ime = self.cpu.next_ime_state;
 
 			let opcode: u8 = self.read_byte(self.cpu.registers.pc);
-			self.cpu.registers.pc += 1;	//rust please add post-increment!
+			self.cpu.registers.pc += 1;
 			self.emulate_hardware();
 
 			match opcode {

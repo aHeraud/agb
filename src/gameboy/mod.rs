@@ -1,11 +1,11 @@
-mod apu;
+pub mod apu;
 pub mod cpu;
-mod ppu;
-mod cartridge;
-mod instructions;
-mod timer;
+pub mod ppu;
+pub mod cartridge;
+pub mod instructions;
+pub mod timer;
+pub mod joypad;
 mod util;
-mod joypad;
 
 use gameboy::apu::APU;
 use gameboy::cpu::CPU;
@@ -48,18 +48,18 @@ const JOYPAD_ADDR:  u16 = 0x0060;
 
 pub struct GBC {
 	pub cpu: CPU,
-	timer: Timer,
-	ppu: Box<PPU>,
-	apu: APU,
-	joypad: Joypad,
+	pub timer: Timer,
+	pub ppu: Box<PPU>,
+	pub apu: APU,
+	pub joypad: Joypad,
 	pub cart: Box<Cartridge>,
-	io: Box<[u8]>,
-	wram: Box<[u8]>,
-	mode: Mode,
+	pub io: Box<[u8]>,
+	pub wram: Box<[u8]>,
+	pub mode: Mode,
 
-	oam_dma_active: bool,
-	oam_dma_start_address: u16,
-	oam_dma_current_offset: u16,
+	pub oam_dma_active: bool,
+	pub oam_dma_start_address: u16,
+	pub oam_dma_current_offset: u16,
 }
 
 #[allow(dead_code)]
@@ -73,7 +73,6 @@ impl GBC {
 		let ppu: Box<PPU> = match mode {
 			_ => Box::new(DmgPpu::new()),
 		};
-
 
 		GBC {
 			cpu: CPU::new(),

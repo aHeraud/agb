@@ -456,6 +456,13 @@ impl PPU for DmgPpu {
 		&self.buffers[buffer_start .. buffer_end]
 	}
 
+	fn get_framebuffer_mut(&mut self) -> &mut[u32] {
+		let buffer_size: usize = WIDTH * HEIGHT;
+		let buffer_start: usize = buffer_size * self.front_buffer_index;
+		let buffer_end = buffer_start + buffer_size;
+		&mut self.buffers[buffer_start .. buffer_end]
+	}
+
 	fn get_vram(&mut self) -> &mut[u8] {
 		&mut self.vram
 	}

@@ -49,6 +49,7 @@ pub trait PPU {
 	///Gets a pointer to the framebuffer, which is an 160*144 RGBA array of u32's that represents
 	///the contents of the gameboys screen
 	fn get_framebuffer(&self) -> &[u32];
+	fn get_framebuffer_mut(&mut self) -> &mut[u32];
 
 	//Debugger functions
 	fn get_vram(&mut self) -> &mut[u8];
