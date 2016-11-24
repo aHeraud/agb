@@ -1,6 +1,6 @@
 #![feature(drop_types_in_const)]
 
-pub mod gameboy;
+mod gameboy;
 pub mod debugger;
 pub use gameboy::joypad::Key;
 
