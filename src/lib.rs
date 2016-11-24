@@ -1,6 +1,8 @@
 #![feature(drop_types_in_const)]
 
-mod gameboy;
+use std::slice;
+
+pub mod gameboy;
 pub mod debugger;
 pub use gameboy::joypad::Key;
 
@@ -12,9 +14,19 @@ static mut GAMEBOY: Option<Box<gameboy::GBC>> = None;
 
 #[no_mangle]
 ///Create a new gameboy object (and store it as a global variable)
-pub fn rustboy_init(rom: Box<[u8]>, ram: Box<[u8]>) {
+pub fn rustboy_init(rom_ptr: *const u8, rom_size: u32, ram_ptr: *const u8, ram_size: u32) {
 	unsafe {
-		GAMEBOY = Some(Box::new(gameboy::GBC::new(rom, ram)));
+		/* Copy into a boxed array */
+		let rom_slice: &[u8] = slice::from_raw_parts(rom_ptr, rom_size as usize);
+		let ram_slice: &[u8] = slice::from_raw_parts(ram_ptr, ram_size as usize);
+
+		let mut rom: Vec<u8> = Vec::with_capacity(rom_size as usize);
+		let mut ram: Vec<u8> = Vec::with_capacity(ram_size as usize);
+
+		rom.extend_from_slice(rom_slice);
+		ram.extend_from_slice(ram_slice);
+
+		GAMEBOY = Some(Box::new(gameboy::GBC::new(rom.into_boxed_slice(), ram.into_boxed_slice())));
 	}
 }
 
