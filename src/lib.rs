@@ -54,12 +54,12 @@ pub fn rustboy_init(rom_ptr: *const u8, rom_size: u32, ram_ptr: *const u8, ram_s
 }
 
 #[no_mangle]
-//Create a new gameboy object from a path to a rom (and store it as a global variable)
-//pub fn rustboy_init_from_path(rom_path: String, ram_path: String) {
-//	unsafe {
-//		GAMEBOY = Some(Box::new(gameboy::GBC::from_path(rom_path, ram_path)));
-//	}
-//}
+///Create a new gameboy object from a path to a rom (and store it as a global variable)
+pub fn rustboy_init_from_path(rom_path: String, ram_path: String) {
+	unsafe {
+		GAMEBOY = Some(Box::new(gameboy::GBC::from_path(rom_path, ram_path)));
+	}
+}
 
 #[no_mangle]
 ///Step to the next frame
@@ -99,7 +99,7 @@ pub fn rustboy_keydown(code: u32) {
 
 #[no_mangle]
 ///Pass a keyup event to the gameboy
-pub fn rustboy_keyup(key: u32) {
+pub fn rustboy_keyup(code: u32) {
 	let key: Option<Key> = get_key(code);
 	if key.is_some() {
 		unsafe {
