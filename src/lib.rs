@@ -2,12 +2,35 @@
 
 use std::slice;
 
-pub mod gameboy;
-pub mod debugger;
-pub use gameboy::joypad::Key;
+mod gameboy;
+mod debugger;
+use gameboy::joypad::Key;
 
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
+
+pub const KEY_UP: u32 = 0;
+pub const KEY_DOWN: u32 = 1;
+pub const KEY_LEFT: u32 = 2;
+pub const KEY_RIGHT: u32 = 3;
+pub const KEY_B: u32 = 4;
+pub const KEY_A: u32 = 5;
+pub const KEY_SELECT: u32 = 6;
+pub const KEY_START: u32 = 7;
+
+fn get_key(code: u32) -> Option<Key> {
+	match code {
+		KEY_UP => Some(Key::Up),
+		KEY_DOWN => Some(Key::Down),
+		KEY_LEFT => Some(Key::Left),
+		KEY_RIGHT => Some(Key::Right),
+		KEY_A => Some(Key::A),
+		KEY_B => Some(Key::B),
+		KEY_SELECT => Some(Key::Select),
+		KEY_START => Some(Key::Start),
+		_ => None,
+	}
+}
 
 ///Global gameboy object
 static mut GAMEBOY: Option<Box<gameboy::GBC>> = None;
@@ -31,12 +54,12 @@ pub fn rustboy_init(rom_ptr: *const u8, rom_size: u32, ram_ptr: *const u8, ram_s
 }
 
 #[no_mangle]
-///Create a new gameboy object from a path to a rom (and store it as a global variable)
-pub fn rustboy_init_from_path(rom_path: String, ram_path: String) {
-	unsafe {
-		GAMEBOY = Some(Box::new(gameboy::GBC::from_path(rom_path, ram_path)));
-	}
-}
+//Create a new gameboy object from a path to a rom (and store it as a global variable)
+//pub fn rustboy_init_from_path(rom_path: String, ram_path: String) {
+//	unsafe {
+//		GAMEBOY = Some(Box::new(gameboy::GBC::from_path(rom_path, ram_path)));
+//	}
+//}
 
 #[no_mangle]
 ///Step to the next frame
@@ -62,22 +85,28 @@ pub fn rustboy_get_framebuffer() -> *mut u32 {
 
 #[no_mangle]
 ///Pass a keydown event to the gameboy
-pub fn rustboy_keydown(key: Key) {
-	unsafe {
-		match GAMEBOY {
-			Some(ref mut gameboy) => gameboy.keydown(key),
-			None => panic!("rustboy not initialized")
-		};
+pub fn rustboy_keydown(code: u32) {
+	let key: Option<Key> = get_key(code);
+	if key.is_some() {
+		unsafe {
+			match GAMEBOY {
+				Some(ref mut gameboy) => gameboy.keydown(key.unwrap()),
+				None => panic!("rustboy not initialized")
+			};
+		}
 	}
 }
 
 #[no_mangle]
 ///Pass a keyup event to the gameboy
-pub fn rustboy_keyup(key: Key) {
-	unsafe {
-		match GAMEBOY {
-			Some(ref mut gameboy) => gameboy.keyup(key),
-			None => panic!("rustboy not initialized")
-		};
+pub fn rustboy_keyup(key: u32) {
+	let key: Option<Key> = get_key(code);
+	if key.is_some() {
+		unsafe {
+			match GAMEBOY {
+				Some(ref mut gameboy) => gameboy.keyup(key.unwrap()),
+				None => panic!("rustboy not initialized")
+			};
+		}
 	}
 }
