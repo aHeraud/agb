@@ -1,10 +1,13 @@
 #![feature(drop_types_in_const)]
 
 use std::slice;
+use std::ptr;
 
 mod gameboy;
 mod debugger;
+use gameboy::GBC;
 use gameboy::joypad::Key;
+use debugger::Debugger;
 
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
@@ -32,8 +35,17 @@ fn get_key(code: u32) -> Option<Key> {
 	}
 }
 
+/* globals */
+
 ///Global gameboy object
-static mut GAMEBOY: Option<Box<gameboy::GBC>> = None;
+static mut GAMEBOY: Option<Box<GBC>> = None;
+
+///Global debugger object
+static mut DEBUGGER: Option<Box<Debugger>> = None;
+
+///Is there a debugger attached to the emulator
+static mut IS_DEBUGGER_ATTACHED: bool = false;
+
 
 #[no_mangle]
 ///Create a new gameboy object (and store it as a global variable)
@@ -66,8 +78,18 @@ pub fn rustboy_init_from_path(rom_path: String, ram_path: String) {
 pub fn rustboy_step_frame() {
 	unsafe {
 		match GAMEBOY {
-			Some(ref mut gameboy) => gameboy.step_frame(),
-			None => panic!("rustboy not initialized")
+			Some(ref mut gameboy) => {
+				match IS_DEBUGGER_ATTACHED {
+					true => {
+						match DEBUGGER {
+							Some(ref mut debugger) => { debugger.step_frame(gameboy); },
+							None => { panic!("There is a debugger attached, but the debugger doesn't exist (this should never happen.)"); }
+						};
+					},
+					false => { gameboy.step_frame(); },
+				};
+			},
+			None => panic!("rustboy not initialized"),
 		}
 	}
 }
@@ -91,7 +113,7 @@ pub fn rustboy_keydown(code: u32) {
 		unsafe {
 			match GAMEBOY {
 				Some(ref mut gameboy) => gameboy.keydown(key.unwrap()),
-				None => panic!("rustboy not initialized")
+				None => panic!("rustboy not initialized"),
 			};
 		}
 	}
@@ -107,6 +129,97 @@ pub fn rustboy_keyup(code: u32) {
 				Some(ref mut gameboy) => gameboy.keyup(key.unwrap()),
 				None => panic!("rustboy not initialized")
 			};
+		}
+	}
+}
+
+/********************/
+/* Debugger exports */
+/********************/
+
+#[no_mangle]
+///Attach a debugger
+pub fn rustboy_attach_debugger() {
+	unsafe {
+		match DEBUGGER {
+			Some(_) => {},
+			None => {
+				/* No debugger exists, create debugger */
+				DEBUGGER = Some(Box::new(Debugger::new()));
+			}
+		};
+		IS_DEBUGGER_ATTACHED = true;
+	}
+}
+
+#[no_mangle]
+///Detach the debugger
+pub fn rustboy_detach_debugger() {
+	unsafe {
+		IS_DEBUGGER_ATTACHED = false;
+	}
+}
+
+#[no_mangle]
+///Add a breakpoint (currently only an address)
+pub fn rustboy_add_breakpoint(address: u16) {
+	unsafe {
+		match DEBUGGER {
+			Some(ref mut debugger) => { debugger.add_breakpoint(address); },
+			None => { panic!("You must attach a debugger before you can add breakpoints."); }
+		};
+	}
+}
+
+#[no_mangle]
+///Remove a breakpoint
+pub fn rustboy_remove_breakpoint(address: u16) {
+	unsafe {
+		match DEBUGGER {
+			Some(ref mut debugger) => { debugger.remove_breakpoint(address); },
+			None => { panic!("You must attach a debugger before you can remove breakpoints."); }
+		};
+	}
+}
+
+#[no_mangle]
+///Get a list of breakpoints (as a c array)
+///Returns the size of the array
+pub fn rustboy_get_breakpoints(ptr: &mut *const u16) -> u32 {
+	unsafe {
+		match DEBUGGER {
+			Some(ref mut debugger) => {
+				let breakpoints: Vec<u16> = debugger.get_breakpoints().clone();
+				let length: u32 = breakpoints.len() as u32;
+				*ptr = breakpoints.as_ptr();
+				length
+			},
+			None => {
+				//Should this panic?
+				*ptr = ptr::null();
+				0
+			},
+		}
+	}
+}
+
+#[no_mangle]
+///Step
+pub fn rustboy_step() {
+	unsafe {
+		match GAMEBOY {
+			Some(ref mut gb) => {
+				match IS_DEBUGGER_ATTACHED {
+					true => {
+						match DEBUGGER {
+							Some(ref mut debugger) => { debugger.step(gb, true); }
+							None => { panic!("There is a debugger attached, but the debugger doesn't exist (this should never happen.)"); }
+						};
+					},
+					false => { panic!("You must attach a debugger before you can use the step function."); },
+				};
+			},
+			None => { panic!("rustboy not initialized"); }
 		}
 	}
 }

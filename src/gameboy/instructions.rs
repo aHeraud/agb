@@ -1,14 +1,11 @@
 use super::GBC;
+use super::Register;
 use gameboy::cpu;
 use gameboy::cpu::{ZERO_FLAG, CARRY_FLAG};
 use gameboy::cpu::RegisterPair;
 use gameboy::util::{wrapping_add, wrapping_sub};
 
-#[allow(non_camel_case_types)]
-#[derive(Copy, Clone)]
-pub enum Register {
-	B, C, D, E, H, L, AT_HL, A
-}
+
 
 #[derive(Copy, Clone)]
 pub enum Conditional {

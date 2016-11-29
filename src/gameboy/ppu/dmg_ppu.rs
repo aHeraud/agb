@@ -118,9 +118,9 @@ impl DmgPpu {
 		};
 
 		for x in 0..160 {
-			let mut y_pos: u8;
-			let mut x_pos: u8;
-			let mut map_address: usize;
+			let y_pos: u8;
+			let x_pos: u8;
+			let map_address: usize;
 
 			if window_enabled && x >= wx {
 				//Use the window tilemap here

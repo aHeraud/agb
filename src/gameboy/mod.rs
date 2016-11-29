@@ -8,7 +8,7 @@ pub mod joypad;
 mod util;
 
 use gameboy::apu::APU;
-use gameboy::cpu::CPU;
+use gameboy::cpu::{ RegisterPair, CPU };
 use gameboy::ppu::PPU;
 use gameboy::ppu::dmg_ppu::DmgPpu;
 use gameboy::ppu::cgb_ppu::CgbPpu;
@@ -30,6 +30,12 @@ pub enum Interrupt {
 #[derive(Debug)]
 pub enum Mode {
 	DMG, CGB,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Copy, Clone)]
+pub enum Register {
+	B, C, D, E, H, L, AT_HL, A
 }
 
 //Interrupt bit masks
@@ -130,13 +136,13 @@ impl GBC {
 		}
 	}
 
-	pub fn start_oam_dma(&mut self, value: u8) {
+	fn start_oam_dma(&mut self, value: u8) {
 		self.oam_dma_active = true;
 		self.oam_dma_start_address = (value as u16) << 8;
 		self.oam_dma_current_offset = 0;
 	}
 
-	pub fn service_oam_dma(&mut self) {
+	fn service_oam_dma(&mut self) {
 		//If oam dma is running, copy some data
 		//oam dma supposedly takes 671 cycles
 		//Copies 60 bytes
@@ -176,7 +182,7 @@ impl GBC {
 	///Not all memory is readable all of the time,
 	///for instance, vram and oam can't be read during certain ppu states.
 	///and the cpu can't read anything other than hram and iem during a dma transfer
-	pub fn read_byte(&self, address: u16) -> u8 {
+	fn read_byte(&self, address: u16) -> u8 {
 		match address {
 			0x0000...0x7FFF => self.cart.read_byte_rom(address),
 			0x8000...0x9FFF => self.ppu.read_byte_vram(&self.io, address),
@@ -206,7 +212,7 @@ impl GBC {
 		};
 	}
 
-	fn read_byte_wram(&self, address: u16) -> u8 {
+	pub fn read_byte_wram(&self, address: u16) -> u8 {
 		let selected_wram_bank = 1;	//TODO: wram banks
 
 		match address {
@@ -216,7 +222,7 @@ impl GBC {
 		}
 	}
 
-	fn write_byte_wram(&mut self, address: u16, value: u8) {
+	pub fn write_byte_wram(&mut self, address: u16, value: u8) {
 		let selected_wram_bank = 1;	//TODO: wram banks
 
 		match address {
@@ -226,7 +232,7 @@ impl GBC {
 		};
 	}
 
-	fn read_byte_io(&self, address: u16) -> u8 {
+	pub fn read_byte_io(&self, address: u16) -> u8 {
 		match address {
 			0xFF00 => self.joypad.read_joyp(),
 			0xFF01...0xFF7F => self.io[(address - 0xFF00) as usize],
@@ -235,7 +241,7 @@ impl GBC {
 	}
 
 	//FF4F is the io register that controlls the vram bank on gbc
-	fn write_byte_io(&mut self, address: u16, value: u8) {
+	pub fn write_byte_io(&mut self, address: u16, value: u8) {
 		match address {
 			0xFF00 => self.joypad.write_joyp(value),
 			0xFF46 => self.start_oam_dma(value),
@@ -376,4 +382,5 @@ impl GBC {
 	pub fn get_oam(&mut self) -> &mut[u8] {
 		self.ppu.get_oam()
 	}
+
 }
