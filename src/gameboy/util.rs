@@ -14,6 +14,11 @@ pub fn wrapping_sub(r1: u16, r2: u16) -> u16 {
 pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, Error> {
 	let mut file = try!(File::open(path));
 	let mut buffer = Vec::new();
-	try!(file.read_to_end(&mut buffer));
-	Ok(buffer.into_boxed_slice())
+	let result = file.read_to_end(&mut buffer);
+	//try!(file.read_to_end(&mut buffer));
+	//Ok(buffer.into_boxed_slice())
+	match result {
+		Ok(_) => Ok(buffer.into_boxed_slice()),
+		Err(err) => Err(err),
+	}
 }
