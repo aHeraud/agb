@@ -70,7 +70,7 @@ pub struct GBC {
 
 #[allow(dead_code)]
 impl GBC {
-	pub fn new(rom: Box<[u8]>, ram: Box<[u8]>) -> GBC {
+	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> GBC {
 		let cart: Box<Cartridge> = Box::new(VirtualCartridge::new(rom, ram));
 		let mode: Mode = match cart.get_cart_info().cgb {
 			true => Mode::CGB,
@@ -78,31 +78,6 @@ impl GBC {
 		};
 		let ppu: Box<PPU> = match mode {
 			_ => Box::new(DmgPpu::new()),
-		};
-
-		GBC {
-			cpu: CPU::new(),
-			timer: Timer::new(),
-			ppu: ppu,
-			apu: APU::new(),
-			joypad: Joypad::new(),
-			cart: cart,
-			io: Box::new([0; IO_SIZE]),
-			wram: Box::new([0; WRAM_BANK_SIZE * WRAM_NUM_BANKS]),
-			mode: mode,
-
-			oam_dma_active: false,
-			oam_dma_start_address: 0,
-			oam_dma_current_offset: 0,
-		}
-	}
-
-	pub fn from_path(rom_path: String, ram_path: String) -> GBC {
-		let cart: Box<Cartridge> = Box::new(VirtualCartridge::from_path(rom_path, ram_path));
-		let ppu: Box<PPU> = Box::new(DmgPpu::new());
-		let mode: Mode = match cart.get_cart_info().cgb {
-			true => Mode::CGB,
-			false => Mode::DMG,
 		};
 
 		GBC {

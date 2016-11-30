@@ -3,7 +3,6 @@ mod mbc1;
 
 use gameboy::cartridge::nombc::NoMBC;
 use gameboy::cartridge::mbc1::MBC1;
-use gameboy::util::read_file;
 
 #[derive(Debug)]
 pub enum MBCType {
@@ -133,8 +132,19 @@ pub struct VirtualCartridge {
 }
 
 impl VirtualCartridge {
-	pub fn new(rom: Box<[u8]>, ram: Box<[u8]>) -> VirtualCartridge {
+	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> VirtualCartridge {
 		let cart_info: CartInfo = CartInfo::new(&rom);
+
+		//TODO: expand ram if the ram file loaded is too small (and give a warning?)
+		let ram = match ram {
+			Some(ram) => ram,
+			None => {
+				//No ram supplied, allocate some.
+				let vec: Vec<u8> = Vec::with_capacity(cart_info.ram_size);
+				vec.into_boxed_slice()
+			}
+		};
+
 		VirtualCartridge {
 			rom: rom,
 			ram: ram,
@@ -145,22 +155,6 @@ impl VirtualCartridge {
 			},
 			cart_info: cart_info,
 		}
-	}
-
-	///Loads a virtual cartridge from the supplied path. If the ram file doesn't exist, the cartridge
-	///ram will be allocated before calling the VirtualCartridge constructor
-	pub fn from_path(rom_path: String, ram_path: String) -> VirtualCartridge {
-		let rom: Box<[u8]> = read_file(rom_path).unwrap();	//If this isn't a valid file just panic
-		let cart_info: CartInfo = CartInfo::new(&rom);
-		let ram: Box<[u8]> = match read_file(ram_path) {
-			Err(_) => {
-				//ram file doesn't exist, make a ram array
-				let vec: Vec<u8> = Vec::with_capacity(cart_info.ram_size);
-				vec.into_boxed_slice()
-			}
-			Ok(v) => v,
-		};
-		VirtualCartridge::new(rom, ram)
 	}
 }
 
