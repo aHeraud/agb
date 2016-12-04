@@ -2,7 +2,7 @@ use std::vec::Vec;
 
 pub use gameboy::Register;
 pub use gameboy::cpu::RegisterPair;
-use gameboy::GBC;
+use gameboy::Gameboy;
 mod instructions;
 
 //pub enum AccessType {
@@ -65,7 +65,7 @@ impl Debugger {
 
 	///Executes for ~70224 clock cycles (the duration of a full screen refresh)
 	///Stops execution when a breakpoint is hit
-	pub fn step_frame(&mut self, gb: &mut GBC) {
+	pub fn step_frame(&mut self, gb: &mut Gameboy) {
 		//A complete frame occurs every ~70224 clock cycles (140448 in gbc double speed mode)
 		const FRAME_CLOCKS: usize = 70224;
 		let mut counter: usize = 0;
@@ -85,7 +85,7 @@ impl Debugger {
 
 	///Returns Some(pc) if you hit a breakpoint, otherwise return none
 	///You can step over a breakpoint by setting step_over to true
-	pub fn step(&mut self, gb: &mut GBC, step_over: bool) -> Option<u16> {
+	pub fn step(&mut self, gb: &mut Gameboy, step_over: bool) -> Option<u16> {
 		let pc: u16 = gb.cpu.registers.pc;
 		let index_result = self.breakpoints.binary_search(&pc);
 		match index_result {
@@ -107,7 +107,10 @@ impl Debugger {
 		}
 	}
 
-	pub fn read_byte(gb: &GBC, address: u16) -> u8 {
+	///TODO: don't use the public read methods since they are meant
+	///for the cpu and have certain conditions where a memory region
+	///can not be accessed
+	pub fn read_byte(gb: &Gameboy, address: u16) -> u8 {
 		match address {
 			0x0000...0x7FFF => gb.cart.read_byte_rom(address),
 			0x8000...0x9FFF => gb.ppu.read_byte_vram(&gb.io, address),
@@ -122,7 +125,10 @@ impl Debugger {
 		}
 	}
 
-	pub fn write_byte(gb: &mut GBC, address: u16, value: u8) {
+	///TODO: don't use the public write methods since they are meant
+	///for the cpu and have certain conditions where a memory region
+	///can not be accessed
+	pub fn write_byte(gb: &mut Gameboy, address: u16, value: u8) {
 		match address {
 			0x0000...0x7FFF => gb.cart.write_byte_rom(address, value),
 			0x8000...0x9FFF => gb.ppu.write_byte_vram(&gb.io, address, value),
@@ -137,7 +143,7 @@ impl Debugger {
 		};
 	}
 
-	pub fn get_register(gb: &GBC, reg: Register) -> u8 {
+	pub fn get_register(gb: &Gameboy, reg: Register) -> u8 {
 		match reg {
 			Register::B => gb.cpu.registers.b,
 			Register::C => gb.cpu.registers.c,
@@ -147,14 +153,14 @@ impl Debugger {
 			Register::L => gb.cpu.registers.l,
 			Register::AT_HL => {
 				let hl: u16 = gb.cpu.registers.get_register_pair(RegisterPair::HL);
-				let value = Debugger::read_byte(gb, hl);	//TODO: Debugger needs it's own read/write functions?
+				let value = Debugger::read_byte(gb, hl);
 				value
 			},
 			Register::A => gb.cpu.registers.a,
 		}
 	}
 
-	pub fn set_register(gb: &mut GBC, reg: Register, val: u8) {
+	pub fn set_register(gb: &mut Gameboy, reg: Register, val: u8) {
 		match reg {
 			Register::B => gb.cpu.registers.b = val,
 			Register::C => gb.cpu.registers.c = val,
@@ -164,19 +170,19 @@ impl Debugger {
 			Register::L => gb.cpu.registers.l = val,
 			Register::AT_HL => {
 				let hl: u16 = gb.cpu.registers.get_register_pair(RegisterPair::HL);
-				Debugger::write_byte(gb, hl, val);	//TODO: Debugger needs it's own read/write functions?
+				Debugger::write_byte(gb, hl, val);
 			},
 			Register::A => gb.cpu.registers.a = val,
 		};
 	}
 
 	/* Read the value of one of the register pairs */
-	pub fn get_register_pair(gb: &GBC, reg: RegisterPair) -> u16 {
+	pub fn get_register_pair(gb: &Gameboy, reg: RegisterPair) -> u16 {
 		gb.cpu.registers.get_register_pair(reg)
 	}
 
 	/* Set the value of one of the register pairs*/
-	pub fn set_register_pair(gb: &mut GBC, reg: RegisterPair, val: u16) {
+	pub fn set_register_pair(gb: &mut Gameboy, reg: RegisterPair, val: u16) {
 		gb.cpu.registers.set_register_pair(reg, val);
 	}
 }

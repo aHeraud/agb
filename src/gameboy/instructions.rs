@@ -1,4 +1,4 @@
-use super::GBC;
+use super::Gameboy;
 use super::Register;
 use gameboy::cpu;
 use gameboy::cpu::{ZERO_FLAG, CARRY_FLAG};
@@ -26,7 +26,7 @@ fn map_register(reg: u8) -> Register {
 	}
 }
 
-impl GBC {
+impl Gameboy {
 	pub fn step(&mut self) {
 		self.interrupt_service_routine();
 
@@ -371,7 +371,7 @@ impl GBC {
 	}
 }
 
-impl GBC {
+impl Gameboy {
 
 	///INC r8 (0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x34, 0x3C)
 	///1 M-Cycle (except 0x34, INC (HL), which takes 3 M-Cycles (read and write to (HL)))
@@ -487,10 +487,10 @@ impl GBC {
 	///5 M-Cycles
 	///Length: 3 bytes
 	fn ld_at_a16_sp(&mut self) {
-		let addr_low = self.read_next();
+		let addr_low: u8 = self.read_next();
 		self.emulate_hardware();
 
-		let addr_high = self.read_next();
+		let addr_high: u8 = self.read_next();
 		self.emulate_hardware();
 
 		let addr: u16 = (addr_high as u16) << 8 | (addr_low as u16);

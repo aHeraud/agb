@@ -52,7 +52,7 @@ const TIMER_ADDR:   u16 = 0x0050;
 const SERIAL_ADDR:  u16 = 0x0058;
 const JOYPAD_ADDR:  u16 = 0x0060;
 
-pub struct GBC {
+pub struct Gameboy {
 	pub cpu: CPU,
 	pub timer: Timer,
 	pub ppu: Box<PPU>,
@@ -69,8 +69,8 @@ pub struct GBC {
 }
 
 #[allow(dead_code)]
-impl GBC {
-	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> GBC {
+impl Gameboy {
+	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Gameboy {
 		let cart: Box<Cartridge> = Box::new(VirtualCartridge::new(rom, ram));
 		let mode: Mode = match cart.get_cart_info().cgb {
 			true => Mode::CGB,
@@ -80,7 +80,7 @@ impl GBC {
 			_ => Box::new(DmgPpu::new()),
 		};
 
-		GBC {
+		Gameboy {
 			cpu: CPU::new(),
 			timer: Timer::new(),
 			ppu: ppu,
