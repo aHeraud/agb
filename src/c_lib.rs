@@ -38,7 +38,7 @@ fn get_key(code: u32) -> Option<Key> {
 
 #[no_mangle]
 ///Create a new gameboy object (and store it as a global variable)
-pub fn rustboy_init(rom_ptr: *const u8, rom_size: u32, ram_ptr: *const u8, ram_size: u32) -> *mut Gameboy {
+pub extern fn rustboy_init(rom_ptr: *const u8, rom_size: u32, ram_ptr: *const u8, ram_size: u32) -> *mut Gameboy {
 	unsafe {
 		/* Copy into a boxed array */
 		let rom_slice: &[u8] = slice::from_raw_parts(rom_ptr, rom_size as usize);
@@ -57,7 +57,7 @@ pub fn rustboy_init(rom_ptr: *const u8, rom_size: u32, ram_ptr: *const u8, ram_s
 
 #[no_mangle]
 ///Step to the next frame
-pub fn rustboy_step_frame(gameboy_ptr: *mut Gameboy) {
+pub extern fn rustboy_step_frame(gameboy_ptr: *mut Gameboy) {
 	if gameboy_ptr.is_null() {
 		panic!("gameboy_ptr can not be null.");
 	}
@@ -68,7 +68,7 @@ pub fn rustboy_step_frame(gameboy_ptr: *mut Gameboy) {
 
 #[no_mangle]
 ///Get a pointer to the current front framebuffer
-pub fn rustboy_get_framebuffer(gameboy_ptr: *mut Gameboy) -> *mut u32 {
+pub extern fn rustboy_get_framebuffer(gameboy_ptr: *mut Gameboy) -> *mut u32 {
 	if gameboy_ptr.is_null() {
 		panic!("gameboy_ptr can not be null.");
 	}
@@ -79,7 +79,7 @@ pub fn rustboy_get_framebuffer(gameboy_ptr: *mut Gameboy) -> *mut u32 {
 
 #[no_mangle]
 ///Pass a keydown event to the gameboy
-pub fn rustboy_keydown(gameboy_ptr: *mut Gameboy, code: u32) {
+pub extern fn rustboy_keydown(gameboy_ptr: *mut Gameboy, code: u32) {
 	if gameboy_ptr.is_null() {
 		panic!("gameboy_ptr can not be null.");
 	}
@@ -92,7 +92,7 @@ pub fn rustboy_keydown(gameboy_ptr: *mut Gameboy, code: u32) {
 
 #[no_mangle]
 ///Pass a keyup event to the gameboy
-pub fn rustboy_keyup(gameboy_ptr: *mut Gameboy, code: u32) {
+pub extern fn rustboy_keyup(gameboy_ptr: *mut Gameboy, code: u32) {
 	if gameboy_ptr.is_null() {
 		panic!("gameboy_ptr can not be null.");
 	}
