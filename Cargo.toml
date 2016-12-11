@@ -4,9 +4,3 @@ version = "0.1.0"
 authors = ["Atlas <achille@heraud.xyz>"]
 
 [dependencies]
-
-[features]
-default = []
-
-#Export a version of the library that uses the c ffi
-c_exports = []

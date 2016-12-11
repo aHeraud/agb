@@ -1,15 +1,11 @@
-mod gameboy;
-mod debugger;
+pub mod gameboy;
+pub mod debugger;
 use gameboy::Gameboy;
 use gameboy::joypad::Key;
 use debugger::Debugger;
 
-#[cfg(c_exports)]
-pub use c_lib;
-
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
-
 
 ///Initialize the gameboy and load a rom file (and optionally a ram file)
 pub fn init(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Box<Gameboy> {
