@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use super::MemoryBankController;
 
 pub struct NoMBC {

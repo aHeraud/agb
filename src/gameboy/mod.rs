@@ -7,6 +7,9 @@ pub mod timer;
 pub mod joypad;
 mod util;
 
+//Import Box since we aren't linking with the standard library
+use alloc::boxed::Box;
+
 use gameboy::apu::APU;
 use gameboy::cpu::{ RegisterPair, CPU };
 use gameboy::ppu::PPU;
@@ -326,6 +329,7 @@ impl Gameboy {
 		}
 	}
 
+	/*
 	///This is only really here for test roms that output results as text through the
 	///serial port (blarggs test roms)
 	fn print_serial(&mut self) {
@@ -339,7 +343,7 @@ impl Gameboy {
 			self.io[0x02] &= 127;
 			self.request_interrupt(Interrupt::Serial);
 		}
-	}
+	}*/
 
 	pub fn keydown(&mut self, key: Key) {
 		self.joypad.keydown(key);
@@ -352,6 +356,10 @@ impl Gameboy {
 
 	pub fn get_framebuffer(&self) -> &[u32] {
 		self.ppu.get_framebuffer()
+	}
+
+	pub fn get_framebuffer_mut(&mut self) -> &mut[u32] {
+		self.ppu.get_framebuffer_mut()
 	}
 
 	pub fn get_oam(&mut self) -> &mut[u8] {

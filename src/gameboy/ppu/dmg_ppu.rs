@@ -1,4 +1,7 @@
-use std::num::Wrapping;
+use alloc::boxed::Box;
+use core::num::Wrapping;
+
+
 use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode};
 use super::{COINCIDENCE_INTERRUPT_ENABLE_MASK, OAM_INTERUPT_ENABLE_MASK, VBLANK_INTERRUPT_ENABLE_MASK, HBLANK_INTERRUPT_ENABLE_MASK};
 

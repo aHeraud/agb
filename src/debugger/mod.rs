@@ -1,4 +1,4 @@
-use std::vec::Vec;
+use collections::vec::Vec;
 
 pub use gameboy::Register;
 pub use gameboy::cpu::RegisterPair;

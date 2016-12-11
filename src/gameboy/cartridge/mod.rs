@@ -1,6 +1,10 @@
 mod nombc;
 mod mbc1;
 
+use alloc::boxed::Box;
+use collections::vec::Vec;
+use collections::string::String;
+
 use gameboy::cartridge::nombc::NoMBC;
 use gameboy::cartridge::mbc1::MBC1;
 

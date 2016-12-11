@@ -1,4 +1,5 @@
 pub fn print_instruction(slice: &[u8]) {
+	/*
 	match slice[0] {
 		0x00 => println!("NOP"),
 		0x01 => println!("LD BC, {:X}", (((slice[2] as u16) << 8) | slice[1] as u16)),
@@ -253,7 +254,7 @@ pub fn print_instruction(slice: &[u8]) {
 		0xFE => println!("CP {:X}", slice[1]),
 		0xFF => println!("RST 38H"),
 		_ => println!("Invalid opcode {:X}", slice[0]),
-	}
+	} */
 }
 
 fn print_extended_instruction(slice: &[u8]) {

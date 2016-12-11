@@ -35,7 +35,7 @@ impl Gameboy {
 		}
 
 		else {
-			self.print_serial();
+			//self.print_serial();
 
 			self.cpu.ime = self.cpu.next_ime_state;
 
