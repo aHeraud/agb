@@ -17,8 +17,9 @@ pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
 
 ///Initialize the gameboy and load a rom file (and optionally a ram file)
-pub fn init(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Box<Gameboy> {
-	Box::new(Gameboy::new(rom, ram))
+pub fn init(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Box<Gameboy>, & 'static str> {
+	let gameboy = try!(Gameboy::new(rom, ram));
+	Ok(Box::new(gameboy))
 }
 
 pub fn step_frame(gameboy: &mut Gameboy) {

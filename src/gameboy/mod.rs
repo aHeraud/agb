@@ -73,8 +73,8 @@ pub struct Gameboy {
 
 #[allow(dead_code)]
 impl Gameboy {
-	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Gameboy {
-		let cart: Box<Cartridge> = Box::new(VirtualCartridge::new(rom, ram));
+	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Gameboy, & 'static str> {
+		let cart = Box::new(try!(VirtualCartridge::new(rom, ram)));
 		let mode: Mode = match cart.get_cart_info().cgb {
 			true => Mode::CGB,
 			false => Mode::DMG,
@@ -83,7 +83,7 @@ impl Gameboy {
 			_ => Box::new(DmgPpu::new()),
 		};
 
-		Gameboy {
+		let gameboy = Gameboy {
 			cpu: CPU::new(),
 			timer: Timer::new(),
 			ppu: ppu,
@@ -97,7 +97,9 @@ impl Gameboy {
 			oam_dma_active: false,
 			oam_dma_start_address: 0,
 			oam_dma_current_offset: 0,
-		}
+		};
+
+		Ok(gameboy)
 	}
 
 	pub fn step_frame(&mut self) {
