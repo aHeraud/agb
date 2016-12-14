@@ -1,9 +1,20 @@
 mod nombc;
 mod mbc1;
 
+#[cfg(feature = "no_std")]
 use alloc::boxed::Box;
+
+#[cfg(feature = "no_std")]
 use collections::vec::Vec;
+
+#[cfg(feature = "no_std")]
 use collections::string::String;
+
+#[cfg(not(feature = "no_std"))]
+use std::vec::Vec;
+
+#[cfg(not(feature = "no_std"))]
+use std::string::String;
 
 use gameboy::cartridge::nombc::NoMBC;
 use gameboy::cartridge::mbc1::MBC1;

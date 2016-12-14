@@ -7,7 +7,7 @@ pub mod timer;
 pub mod joypad;
 mod util;
 
-//Import Box since we aren't linking with the standard library
+#[cfg(feature = "no_std")]
 use alloc::boxed::Box;
 
 use gameboy::apu::APU;

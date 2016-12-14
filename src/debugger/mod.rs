@@ -1,4 +1,8 @@
+#[cfg(feature = "no_std")]
 use collections::vec::Vec;
+
+#[cfg(not(feature = "no_std"))]
+use std::vec::Vec;
 
 pub use gameboy::Register;
 pub use gameboy::cpu::RegisterPair;

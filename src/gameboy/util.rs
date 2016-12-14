@@ -1,7 +1,12 @@
 //use std::fs::File;
 //use std::io::{Read, Error};
 //use std::path::Path;
+
+#[cfg(feature = "no_std")]
 use core::num::Wrapping;
+
+#[cfg(not(feature = "no_std"))]
+use std::num::Wrapping;
 
 pub fn wrapping_add(r1: u16, r2: u16) -> u16 {
 	(Wrapping(r1) + Wrapping(r2)).0

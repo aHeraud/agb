@@ -3,8 +3,17 @@ pub const SUBTRACTION_FLAG: u8 = 1 << 6;
 pub const HALF_CARRY_FLAG: u8 = 1 << 5;
 pub const CARRY_FLAG: u8 = 1 << 4;
 
+#[cfg(feature = "no_std")]
 use collections::fmt;
+
+#[cfg(not(feature = "no_std"))]
+use std::fmt;
+
+#[cfg(feature = "no_std")]
 use core::num::Wrapping;
+
+#[cfg(not(feature = "no_std"))]
+use std::num::Wrapping;
 
 const HRAM_SIZE: usize = 127;
 
@@ -165,7 +174,12 @@ impl Registers {
 /* Alu functions */
 pub mod alu {
 	use super::{ZERO_FLAG, SUBTRACTION_FLAG, HALF_CARRY_FLAG, CARRY_FLAG};
+
+	#[cfg(feature = "no_std")]
 	use core::num::Wrapping;
+
+	#[cfg(not(feature = "no_std"))]
+	use std::num::Wrapping;
 
 	///Adds the values of 2 8-bit registers together, returns the result as a u8.
 	///The resulting value of the flags register is: Z 0 H C

@@ -4,3 +4,6 @@ version = "0.1.0"
 authors = ["Atlas <achille@heraud.xyz>"]
 
 [dependencies]
+
+[features]
+no_std = [] #Build without the standard library
