@@ -9,12 +9,6 @@ use collections::fmt;
 #[cfg(not(feature = "no_std"))]
 use std::fmt;
 
-#[cfg(feature = "no_std")]
-use core::num::Wrapping;
-
-#[cfg(not(feature = "no_std"))]
-use std::num::Wrapping;
-
 const HRAM_SIZE: usize = 127;
 
 //On the DMG/CGB the EI instruction, the value of ime isn't changed until after the next instruction,
