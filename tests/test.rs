@@ -63,9 +63,8 @@ fn save_screenshot(path: String, raw: Vec<u32>) -> Result<(), std::io::Error> {
 #[test]
 #[allow(unused_must_use)]
 fn test_rom_runner() {
-	let mut log = File::create("tests/results/test_log.txt").expect("Failed to create log file.");
-
 	create_dir("tests/results");	//Create a directory for screenshots
+	let mut log = File::create("tests/results/test_log.txt").expect("Failed to create log file.");
 
 	let dir = read_dir("tests/test_roms").expect("Test rom directory doesn't exist. Place test roms in tests/test_roms to run them.");
 
