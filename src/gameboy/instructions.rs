@@ -337,6 +337,7 @@ impl Gameboy {
 				value
 			},
 			Register::A => self.cpu.registers.a,
+			Register::F => self.cpu.registers.f,
 		}
 	}
 
@@ -354,6 +355,7 @@ impl Gameboy {
 				self.emulate_hardware();
 			},
 			Register::A => self.cpu.registers.a = val,
+			Register::F => self.cpu.registers.f = val,
 		};
 	}
 

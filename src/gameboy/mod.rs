@@ -38,7 +38,7 @@ pub enum Mode {
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone)]
 pub enum Register {
-	B, C, D, E, H, L, AT_HL, A
+	B, C, D, E, H, L, AT_HL, A, F
 }
 
 //Interrupt bit masks
@@ -155,7 +155,7 @@ impl Gameboy {
 		}
 		self.ppu.clear_interrupts();
 
-		self.apu.emulate_hardware();
+		self.apu.emulate_hardware(&mut self.io);
 	}
 
 	///Read a byte at $address

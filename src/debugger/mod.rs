@@ -161,6 +161,7 @@ impl Debugger {
 				value
 			},
 			Register::A => gb.cpu.registers.a,
+			Register::F => gb.cpu.registers.f,
 		}
 	}
 
@@ -177,6 +178,7 @@ impl Debugger {
 				Debugger::write_byte(gb, hl, val);
 			},
 			Register::A => gb.cpu.registers.a = val,
+			Register::F => gb.cpu.registers.f = val,
 		};
 	}
 
