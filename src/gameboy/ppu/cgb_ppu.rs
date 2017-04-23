@@ -1,5 +1,7 @@
 use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_CGB, OAM_SIZE, WIDTH, HEIGHT};
 
+//TODO: VRAM BANKS? HOW DOES IT WORK???
+
 pub struct CgbPpu {
 	pub vram: [u8; VRAM_BANK_SIZE * VRAM_NUM_BANKS_CGB],
 	pub oam: [u8; OAM_SIZE],
@@ -106,11 +108,21 @@ impl PPU for CgbPpu {
 		&mut self.buffer[0..WIDTH*HEIGHT]
 	}
 
-	fn get_vram(&mut self) -> &mut[u8] {
-		&mut self.vram
+	///TODO: VRAM BANKS
+	fn get_vram(&self) -> &[u8] {
+		&self.vram[0..0x2000]
 	}
 
-	fn get_oam(&mut self) -> &mut[u8] {
+	///TODO: VRAM BANKS
+	fn get_vram_mut(&mut self) -> &mut[u8] {
+		&mut self.vram[0..0x2000]
+	}
+
+	fn get_oam(&self) -> &[u8] {
+		&self.oam
+	}
+
+	fn get_oam_mut(&mut self) -> &mut[u8] {
 		&mut self.oam
 	}
 }

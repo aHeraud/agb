@@ -1,10 +1,10 @@
 use super::Gameboy;
 use super::Register;
+use gameboy::mmu::Mmu;
 use gameboy::cpu;
 use gameboy::cpu::{ZERO_FLAG, CARRY_FLAG};
 use gameboy::cpu::RegisterPair;
 use gameboy::util::{wrapping_add, wrapping_sub};
-
 
 
 #[derive(Copy, Clone)]
@@ -27,8 +27,8 @@ fn map_register(reg: u8) -> Register {
 }
 
 impl Gameboy {
-	pub fn step(&mut self) {
-		self.interrupt_service_routine();
+	pub fn execute(&mut self) {
+		//self.interrupt_service_routine();  //called seperately to let debugger see calls to interrupt vectors
 
 		if  self.cpu.halt {
 			self.emulate_hardware();
@@ -39,7 +39,7 @@ impl Gameboy {
 
 			self.cpu.ime = self.cpu.next_ime_state;
 
-			let opcode: u8 = self.read_byte(self.cpu.registers.pc);
+			let opcode: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 			self.cpu.registers.pc += 1;
 			self.emulate_hardware();
 
@@ -197,7 +197,7 @@ impl Gameboy {
 
 	///Read the u8 at pc, and increment pc
 	fn read_next(&mut self) -> u8 {
-		let val: u8 = self.read_byte(self.cpu.registers.pc);
+		let val: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
 		val
 	}
@@ -213,12 +213,12 @@ impl Gameboy {
 		let sp: u16 = self.cpu.registers.sp;
 
 		let high: u8 = (value >> 8) as u8;
-		self.write_byte(sp - 1, high);
+		self.write_byte_cpu(sp - 1, high);
 		self.emulate_hardware();
 
 		//push low byte of pc onto stack
 		let low: u8 = (value & 0xFF) as u8;
-		self.write_byte(sp - 2, low);
+		self.write_byte_cpu(sp - 2, low);
 		self.emulate_hardware();
 
 		//sub 2 from sp because we pushed a word onto the stack
@@ -228,10 +228,10 @@ impl Gameboy {
 	///Pop a byte off of the stack
 	///2 M-Cycles of memory access
 	fn pop(&mut self) -> u16 {
-		let low: u8 = self.read_byte(self.cpu.registers.sp);
+		let low: u8 = self.read_byte_cpu(self.cpu.registers.sp);
 		self.emulate_hardware();
 
-		let high: u8 = self.read_byte(self.cpu.registers.sp + 1);
+		let high: u8 = self.read_byte_cpu(self.cpu.registers.sp + 1);
 		self.emulate_hardware();
 
 		self.cpu.registers.sp += 2;
@@ -241,11 +241,11 @@ impl Gameboy {
 	fn _ret(&mut self) {
 		//read low byte of return address from stack
 		let sp: u16 = self.cpu.registers.sp;
-		let addr_low: u8 = self.read_byte(sp);
+		let addr_low: u8 = self.read_byte_cpu(sp);
 		self.emulate_hardware();
 
 		//read high byte of return address from stack
-		let addr_high: u8 = self.read_byte(sp + 1);
+		let addr_high: u8 = self.read_byte_cpu(sp + 1);
 		self.emulate_hardware();
 
 		//where does this delay actually go?
@@ -258,12 +258,12 @@ impl Gameboy {
 
 	fn jp_conditional(&mut self, conditional: Conditional) {
 		//1 cycle to read low byte of address
-		let addr_low: u8 = self.read_byte(self.cpu.registers.pc);
+		let addr_low: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
 		self.emulate_hardware();
 
 		//1 cycle to read high byte of address
-		let addr_high: u8 = self.read_byte(self.cpu.registers.pc);
+		let addr_high: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
 		self.emulate_hardware();
 
@@ -332,7 +332,7 @@ impl Gameboy {
 			Register::L => self.cpu.registers.l,
 			Register::AT_HL => {
 				let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
-				let value = self.read_byte(hl);
+				let value = self.read_byte_cpu(hl);
 				self.emulate_hardware();
 				value
 			},
@@ -351,7 +351,7 @@ impl Gameboy {
 			Register::L => self.cpu.registers.l = val,
 			Register::AT_HL => {
 				let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
-				self.write_byte(hl, val);
+				self.write_byte_cpu(hl, val);
 				self.emulate_hardware();
 			},
 			Register::A => self.cpu.registers.a = val,
@@ -480,7 +480,7 @@ impl Gameboy {
 	fn ld_at_bc_a(&mut self) {
 		let bc: u16 = self.cpu.registers.get_register_pair(RegisterPair::BC);
 		let a: u8 = self.cpu.registers.a;
-		self.write_byte(bc, a);
+		self.write_byte_cpu(bc, a);
 		self.emulate_hardware();
 	}
 
@@ -501,10 +501,10 @@ impl Gameboy {
 		let sp_low: u8 = (sp & 0xFF) as u8;
 		let sp_high: u8 = (sp >> 8) as u8;
 
-		self.write_byte(addr, sp_low);
+		self.write_byte_cpu(addr, sp_low);
 		self.emulate_hardware();
 
-		self.write_byte(addr + 1, sp_high);
+		self.write_byte_cpu(addr + 1, sp_high);
 		self.emulate_hardware();
 	}
 
@@ -522,7 +522,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn ld_a_at_bc(&mut self) {
 		let bc: u16 = self.cpu.registers.get_register_pair(RegisterPair::BC);
-		self.cpu.registers.a = self.read_byte(bc);
+		self.cpu.registers.a = self.read_byte_cpu(bc);
 		self.emulate_hardware();
 	}
 
@@ -562,7 +562,7 @@ impl Gameboy {
 	fn ld_at_de_a(&mut self) {
 		let de: u16 = self.cpu.registers.get_register_pair(RegisterPair::DE);
 		let a: u8 = self.cpu.registers.a;
-		self.write_byte(de, a);
+		self.write_byte_cpu(de, a);
 		self.emulate_hardware();
 	}
 
@@ -595,7 +595,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn ld_a_at_de(&mut self) {
 		let de: u16 = self.cpu.registers.get_register_pair(RegisterPair::DE);
-		self.cpu.registers.a = self.read_byte(de);
+		self.cpu.registers.a = self.read_byte_cpu(de);
 		self.emulate_hardware();
 	}
 
@@ -651,7 +651,7 @@ impl Gameboy {
 	fn ldi_at_hl_a(&mut self) {
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		let a: u8 = self.cpu.registers.a;
-		self.write_byte(hl, a);
+		self.write_byte_cpu(hl, a);
 		//increment hl
 		self.cpu.registers.set_register_pair(RegisterPair::HL, wrapping_add(hl, 1));
 		self.emulate_hardware();
@@ -763,7 +763,7 @@ impl Gameboy {
 	fn ldi_a_at_hl(&mut self) {
 		//read memory at (HL)
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
-		let val: u8 = self.read_byte(hl);
+		let val: u8 = self.read_byte_cpu(hl);
 		self.emulate_hardware();
 
 		//Update registers
@@ -778,7 +778,7 @@ impl Gameboy {
 		//1 cycle to set memory at address HL
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		let a: u8 = self.cpu.registers.a;	//I have to do this because write byte borrows the whole gbc struct as mut
-		self.write_byte(hl, a);
+		self.write_byte_cpu(hl, a);
 		self.cpu.registers.set_register_pair(RegisterPair::HL, wrapping_sub(hl,1));
 		self.emulate_hardware();
 	}
@@ -814,7 +814,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn ldd_a_at_hl(&mut self) {
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
-		self.cpu.registers.a = self.read_byte(hl);
+		self.cpu.registers.a = self.read_byte_cpu(hl);
 		self.cpu.registers.set_register_pair(RegisterPair::HL, wrapping_sub(hl, 1));
 		self.emulate_hardware();
 	}
@@ -843,7 +843,7 @@ impl Gameboy {
 	fn ld_at_hl_r8(&mut self, reg: Register) {
 		let val: u8 = self.get_register(reg);
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
-		self.write_byte(hl, val);
+		self.write_byte_cpu(hl, val);
 		self.emulate_hardware();
 	}
 
@@ -932,12 +932,12 @@ impl Gameboy {
 	///Address: u16
 	fn jp_a16(&mut self) {
 		//1 cycle to read low byte of address
-		let addr_low: u8 = self.read_byte(self.cpu.registers.pc);
+		let addr_low: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
 		self.emulate_hardware();
 
 		//1 cycle to read high byte of address
-		let addr_high: u8 = self.read_byte(self.cpu.registers.pc);
+		let addr_high: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
 		self.emulate_hardware();
 
@@ -1052,12 +1052,12 @@ impl Gameboy {
 		//push high byte of pc onto stack
 		let sp: u16 = self.cpu.registers.sp;
 		let pc_high: u8 = (self.cpu.registers.pc >> 8) as u8;
-		self.write_byte(sp - 1, pc_high);
+		self.write_byte_cpu(sp - 1, pc_high);
 		self.emulate_hardware();
 
 		//push low byte of pc onto stack
 		let pc_low: u8 = (self.cpu.registers.pc & 0xFF) as u8;
-		self.write_byte(sp - 2, pc_low);
+		self.write_byte_cpu(sp - 2, pc_low);
 		self.emulate_hardware();
 
 		//sub 2 from sp because we pushed a word onto the stack
@@ -1139,7 +1139,7 @@ impl Gameboy {
 
 		//1 cycle to load value of a into ff00 + a8
 		let a: u8 = self.cpu.registers.a;
-		self.write_byte(0xFF00 + (a8 as u16), a);
+		self.write_byte_cpu(0xFF00 + (a8 as u16), a);
 		self.emulate_hardware();
 	}
 
@@ -1150,7 +1150,7 @@ impl Gameboy {
 		//1 cycle to write to io port
 		let addr: u16 = 0xFF00 + self.cpu.registers.c as u16;
 		let val: u8 = self.cpu.registers.a;
-		self.write_byte(addr, val);
+		self.write_byte_cpu(addr, val);
 		self.emulate_hardware();
 	}
 
@@ -1201,7 +1201,7 @@ impl Gameboy {
 		//move contents of a to (a16)
 		let address: u16 = ((high as u16) << 8) | (low as u16);
 		let a: u8 = self.cpu.registers.a;
-		self.write_byte(address, a);
+		self.write_byte_cpu(address, a);
 		self.emulate_hardware();
 	}
 
@@ -1228,7 +1228,7 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		//1 cycle to read from io port
-		let val: u8 = self.read_byte(0xFF00 + a8 as u16);
+		let val: u8 = self.read_byte_cpu(0xFF00 + a8 as u16);
 		self.cpu.registers.a = val;
 		self.emulate_hardware();
 	}
@@ -1248,7 +1248,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn ld_a_at_ff00_plus_c(&mut self) {
 		//1 cycle to read from io port
-		let val: u8 = self.read_byte(0xFF00 + self.cpu.registers.c as u16);
+		let val: u8 = self.read_byte_cpu(0xFF00 + self.cpu.registers.c as u16);
 		self.cpu.registers.a = val;
 		self.emulate_hardware();
 	}
@@ -1307,7 +1307,7 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		let address = ((addr_high as u16) << 8) | addr_low as u16;
-		self.cpu.registers.a = self.read_byte(address);
+		self.cpu.registers.a = self.read_byte_cpu(address);
 		self.emulate_hardware();
 	}
 

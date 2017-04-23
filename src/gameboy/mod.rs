@@ -1,23 +1,26 @@
-pub mod apu;
 pub mod cpu;
+mod mmu;
 pub mod ppu;
 pub mod cartridge;
 pub mod instructions;
 pub mod timer;
 pub mod joypad;
+pub mod debugger;
+mod assembly;
 mod util;
 
 #[cfg(feature = "no_std")]
 use alloc::boxed::Box;
 
-use gameboy::apu::APU;
-use gameboy::cpu::{ RegisterPair, CPU };
+use gameboy::mmu::Mmu;
+use gameboy::cpu::{Register, CPU};
 use gameboy::ppu::PPU;
 use gameboy::ppu::dmg_ppu::DmgPpu;
-use gameboy::ppu::cgb_ppu::CgbPpu;
+//use gameboy::ppu::cgb_ppu::CgbPpu;
 use gameboy::timer::Timer;
 use gameboy::cartridge::{Cartridge, VirtualCartridge};
 use gameboy::joypad::Joypad;
+use gameboy::debugger::{Debugger, DebuggerInterface};
 pub use gameboy::joypad::Key;
 
 const IO_SIZE: usize = 128;
@@ -33,12 +36,6 @@ pub enum Interrupt {
 #[derive(Debug)]
 pub enum Mode {
 	DMG, CGB,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Copy, Clone)]
-pub enum Register {
-	B, C, D, E, H, L, AT_HL, A, F
 }
 
 //Interrupt bit masks
@@ -59,13 +56,12 @@ pub struct Gameboy {
 	pub cpu: CPU,
 	pub timer: Timer,
 	pub ppu: Box<PPU>,
-	pub apu: APU,
 	pub joypad: Joypad,
 	pub cart: Box<Cartridge>,
 	pub io: Box<[u8]>,
 	pub wram: Box<[u8]>,
 	pub mode: Mode,
-
+	pub debugger: Debugger,
 	pub oam_dma_active: bool,
 	pub oam_dma_start_address: u16,
 	pub oam_dma_current_offset: u16,
@@ -87,13 +83,12 @@ impl Gameboy {
 			cpu: CPU::new(),
 			timer: Timer::new(),
 			ppu: ppu,
-			apu: APU::new(),
 			joypad: Joypad::new(),
 			cart: cart,
 			io: Box::new([0; IO_SIZE]),
 			wram: Box::new([0; WRAM_BANK_SIZE * WRAM_NUM_BANKS]),
 			mode: mode,
-
+			debugger: Debugger::new(),
 			oam_dma_active: false,
 			oam_dma_start_address: 0,
 			oam_dma_current_offset: 0,
@@ -107,12 +102,29 @@ impl Gameboy {
 		const FRAME_CLOCKS: usize = 70224;
 		let mut counter: usize = 0;
 
-		while counter < FRAME_CLOCKS {
-			self.step();
-			if self.cpu.double_speed_mode {
-				self.step();
+		if self.debugger.enabled() {
+			while counter < FRAME_CLOCKS {
+				self.interrupt_service_routine();
+				if let Some(breakpoint) = self.breakpoint_lookahead() {
+					self.debugger.breakpoint_callback(breakpoint);
+					return;
+				}
+				self.execute();
+				match self.cpu.double_speed_mode {
+					true => counter += 2,
+					false => counter += 4,
+				};
 			}
-			counter += 4;
+		}
+		else {
+			while counter < FRAME_CLOCKS {
+				self.interrupt_service_routine();
+				self.execute();
+				match self.cpu.double_speed_mode {
+					true => counter += 2,
+					false => counter += 4,
+				};
+			}
 		}
 	}
 
@@ -135,7 +147,7 @@ impl Gameboy {
 		self.oam_dma_active = false;
 	}
 
-	pub fn emulate_hardware(&mut self) {
+	fn emulate_hardware(&mut self) {
 		if self.oam_dma_active {
 			self.service_oam_dma();
 		}
@@ -154,80 +166,6 @@ impl Gameboy {
 			self.request_interrupt(Interrupt::LcdStat);
 		}
 		self.ppu.clear_interrupts();
-
-		self.apu.emulate_hardware(&mut self.io);
-	}
-
-	///Read a byte at $address
-	///Not all memory is readable all of the time,
-	///for instance, vram and oam can't be read during certain ppu states.
-	///and the cpu can't read anything other than hram and iem during a dma transfer
-	fn read_byte(&self, address: u16) -> u8 {
-		match address {
-			0x0000...0x7FFF => self.cart.read_byte_rom(address),
-			0x8000...0x9FFF => self.ppu.read_byte_vram(&self.io, address),
-			0xA000...0xBFFF => self.cart.read_byte_ram(address),
-			0xC000...0xDFFF => self.read_byte_wram(address),
-			0xE000...0xFDFF => self.read_byte_wram(address - 0x2000),	//Mirror of wram
-			0xFE00...0xFE9F => self.ppu.read_byte_oam(&self.io, address),
-			0xFF00...0xFF7F => self.read_byte_io(address),
-			0xFF80...0xFFFE => self.cpu.read_byte_hram(address),
-			0xFFFF => self.cpu.ier,
-			_ => 0xFF,
-		}
-	}
-
-	fn write_byte(&mut self, address: u16, value: u8) {
-		match address {
-			0x0000...0x7FFF => self.cart.write_byte_rom(address, value),
-			0x8000...0x9FFF => self.ppu.write_byte_vram(&self.io, address, value),
-			0xA000...0xBFFF => self.cart.write_byte_ram(address, value),
-			0xC000...0xDFFF => self.write_byte_wram(address, value),
-			0xE000...0xFDFF => self.write_byte_wram(address - 0x2000, value),	//Mirror of wram
-			0xFE00...0xFE9F => self.ppu.write_byte_oam(&self.io, address, value),
-			0xFF00...0xFF7F => self.write_byte_io(address, value),
-			0xFF80...0xFFFE => self.cpu.write_byte_hram(address, value),
-			0xFFFF => self.cpu.ier = value,
-			_ => return,
-		};
-	}
-
-	pub fn read_byte_wram(&self, address: u16) -> u8 {
-		let selected_wram_bank = 1;	//TODO: wram banks
-
-		match address {
-			0xC000...0xCFFF => self.wram[(address - 0xC000) as usize],
-			0xD000...0xDFFF => self.wram[(address - 0xC000) as usize + (WRAM_BANK_SIZE * selected_wram_bank) as usize],
-			_ => panic!("gbc::read_byte_wram - invalid arguments, address must be in the range [0xC000, 0xDFFF]"),
-		}
-	}
-
-	pub fn write_byte_wram(&mut self, address: u16, value: u8) {
-		let selected_wram_bank = 1;	//TODO: wram banks
-
-		match address {
-			0xC000...0xCFFF => self.wram[(address - 0xC000) as usize] = value,
-			0xD000...0xDFFF => self.wram[(address - 0xC000) as usize + (WRAM_BANK_SIZE * selected_wram_bank) as usize] = value,
-			_ => panic!("gbc::read_byte_wram - invalid arguments, address must be in the range [0xC000, 0xDFFF]"),
-		};
-	}
-
-	pub fn read_byte_io(&self, address: u16) -> u8 {
-		match address {
-			0xFF00 => self.joypad.read_joyp(),
-			0xFF01...0xFF7F => self.io[(address - 0xFF00) as usize],
-			_ => panic!("gbc::read_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
-		}
-	}
-
-	//FF4F is the io register that controlls the vram bank on gbc
-	pub fn write_byte_io(&mut self, address: u16, value: u8) {
-		match address {
-			0xFF00 => self.joypad.write_joyp(value),
-			0xFF46 => self.start_oam_dma(value),
-			0xFF01...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
-			_ => panic!("gbc::write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
-		};
 	}
 
 	fn request_interrupt(&mut self, req_int: Interrupt) {
@@ -311,6 +249,9 @@ impl Gameboy {
 				let old_pc = self.cpu.registers.pc;
 				let sp: u16 = self.cpu.registers.sp;
 
+				//TODO: if there is an oam dma transfer and sp doesn't point
+				//to hram, can this be put on the stack?
+
 				//push pc onto stack
 				let high: u8 = (old_pc >> 8) as u8;
 				self.write_byte(sp - 1, high);
@@ -360,12 +301,8 @@ impl Gameboy {
 		self.ppu.get_framebuffer()
 	}
 
+	/* If for some reason you want to write directly to the framebuffer */
 	pub fn get_framebuffer_mut(&mut self) -> &mut[u32] {
 		self.ppu.get_framebuffer_mut()
 	}
-
-	pub fn get_oam(&mut self) -> &mut[u8] {
-		self.ppu.get_oam()
-	}
-
 }

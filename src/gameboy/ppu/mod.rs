@@ -3,7 +3,7 @@ pub mod cgb_ppu;
 
 pub const VRAM_BANK_SIZE: usize = 8192;
 pub const VRAM_NUM_BANKS_CGB: usize = 2;
-pub const VRAM_NUM_BANKS_DMG: usize = 2;
+pub const VRAM_NUM_BANKS_DMG: usize = 1;
 pub const OAM_SIZE: usize = 160;
 
 pub const COINCIDENCE_INTERRUPT_ENABLE_MASK: u8 = 64;
@@ -52,6 +52,8 @@ pub trait PPU {
 	fn get_framebuffer_mut(&mut self) -> &mut[u32];
 
 	//Debugger functions
-	fn get_vram(&mut self) -> &mut[u8];
-	fn get_oam(&mut self) -> &mut[u8];
+	fn get_vram(&self) -> &[u8];
+	fn get_vram_mut(&mut self) -> &mut[u8];
+	fn get_oam(&self) -> &[u8];
+	fn get_oam_mut(&mut self) -> &mut[u8];
 }

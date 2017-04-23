@@ -14,6 +14,11 @@ const HRAM_SIZE: usize = 127;
 //On the DMG/CGB the EI instruction, the value of ime isn't changed until after the next instruction,
 ///On the CGB, the same applies to the DI instruction (but not on the DMG)
 
+#[allow(non_camel_case_types)]
+#[derive(Copy, Clone)]
+pub enum Register {
+	B, C, D, E, H, L, AT_HL, A, F
+}
 
 pub struct CPU {
 	pub registers: Registers,
@@ -55,7 +60,7 @@ impl CPU {
 	}
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct Registers {
 	pub a: u8,
 	pub f: u8,

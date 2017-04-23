@@ -90,4 +90,20 @@ impl MemoryBankController for MBC1 {
 			ram[address] = value;
 		}
 	}
+
+	fn rom_bank(&self) -> usize {
+		let mut rom_bank: u8 = self.rom_bank;
+		if self.mode == ModeSelect::Rom {
+			rom_bank |= self.ram_bank << 5;
+		}
+		rom_bank as usize
+	}
+
+	fn ram_bank(&self) -> usize {
+		let mut ram_bank: u8 = 0;
+		if self.mode == ModeSelect::Ram {
+			ram_bank |= self.ram_bank;
+		}
+		ram_bank as usize
+	}
 }

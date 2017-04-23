@@ -47,4 +47,12 @@ impl MemoryBankController for NoMBC {
 			ram[address] = value;
 		}
 	}
+
+	fn rom_bank(&self) -> usize {
+		1 //no mbc, so no bank swapping
+	}
+
+	fn ram_bank(&self) -> usize {
+		0  //no mbc, so no bank swapping
+	}
 }

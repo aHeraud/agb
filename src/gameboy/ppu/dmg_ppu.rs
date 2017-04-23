@@ -471,11 +471,19 @@ impl PPU for DmgPpu {
 		&mut self.buffers[buffer_start .. buffer_end]
 	}
 
-	fn get_vram(&mut self) -> &mut[u8] {
+	fn get_vram(&self) -> &[u8] {
+		&self.vram
+	}
+
+	fn get_vram_mut(&mut self) -> &mut[u8] {
 		&mut self.vram
 	}
 
-	fn get_oam(&mut self) -> &mut[u8] {
+	fn get_oam(&self) -> &[u8] {
+		&self.oam
+	}
+
+	fn get_oam_mut(&mut self) -> &mut[u8] {
 		&mut self.oam
 	}
 }

@@ -1,3 +1,4 @@
+#![feature(inclusive_range_syntax)]
 /* */
 #![cfg_attr(feature = "no_std", no_std)]
 #![cfg_attr(feature = "no_std", feature(alloc))]
@@ -13,7 +14,7 @@ extern crate collections;
 use alloc::boxed::Box;
 
 pub mod gameboy;
-pub mod debugger;
+//pub mod debugger;
 use gameboy::Gameboy;
 use gameboy::joypad::Key;
 //use debugger::Debugger;

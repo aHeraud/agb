@@ -19,6 +19,9 @@ use std::string::String;
 use gameboy::cartridge::nombc::NoMBC;
 use gameboy::cartridge::mbc1::MBC1;
 
+const ROM_BANK_SIZE: usize = 0x4000;
+const RAM_BANK_SIZE: usize = 0x2000;
+
 #[derive(Debug)]
 pub enum MBCType {
 	NONE,
@@ -55,6 +58,15 @@ pub trait Cartridge {
 	fn write_byte_ram(&mut self, address: u16, value: u8);
 
 	fn get_cart_info(&self) -> &CartInfo;
+
+	fn rom(&self) -> &[u8];
+	fn rom_mut(&mut self) -> &mut[u8];
+
+	fn banked_rom(&self) -> &[u8];
+	fn banked_rom_mut(&mut self) -> &mut[u8];
+
+	fn ram(&self) -> &[u8];
+	fn ram_mut(&mut self) -> &mut[u8];
 }
 
 pub trait MemoryBankController {
@@ -63,6 +75,9 @@ pub trait MemoryBankController {
 
 	fn write_byte_rom(&mut self, address: u16, value: u8);
 	fn write_byte_ram(&self, ram: &mut Box<[u8]>, ram_size: usize, adress: u16, value: u8);
+
+	fn rom_bank(&self) -> usize;
+	fn ram_bank(&self) -> usize;
 }
 
 impl CartInfo {
@@ -75,7 +90,7 @@ impl CartInfo {
 			return Err("Rom is too small to contain a rom header (rom is smaller than 0x150 bytes)");
 		}
 
-		let mut info = CartInfo {
+		let info = CartInfo {
 			title: String::from(""),	//TODO
 			sgb: rom[0x0146] == 0x03,
 			cgb: rom[0x0143] & 0x80 == 0x80,
@@ -160,6 +175,7 @@ impl VirtualCartridge {
 		let cart_info: CartInfo = try!(CartInfo::new(&rom));
 
 		//TODO: expand ram if the ram file loaded is too small (and give a warning?)
+		//TODO: rom as well
 		let ram = match ram {
 			Some(ram) => ram,
 			None => {
@@ -207,5 +223,83 @@ impl Cartridge for VirtualCartridge {
 
 	fn get_cart_info(&self) -> &CartInfo {
 		&self.cart_info
+	}
+
+	fn rom(&self) -> &[u8] {
+		&self.rom[0..0x4000]
+	}
+
+	fn rom_mut(&mut self) -> &mut[u8] {
+		&mut self.rom[0..0x4000]
+	}
+
+	fn banked_rom(&self) -> &[u8] {
+		let rom_bank = self.mbc.rom_bank();
+		let base_address = rom_bank * ROM_BANK_SIZE;
+		if base_address >= self.rom.len() {
+			&self.rom[0..0]  //this doesn't exist so return an empty slice
+		}
+		else {
+			let end_address = base_address + ROM_BANK_SIZE;
+			if end_address >= self.rom.len() {
+				&self.rom[base_address..self.rom.len()]
+			}
+			else {
+				&self.rom[base_address..end_address]
+			}
+		}
+	}
+
+	fn banked_rom_mut(&mut self) -> &mut[u8] {
+		let rom_bank = self.mbc.rom_bank();
+		let rom_length = self.rom.len();
+		let base_address = rom_bank * ROM_BANK_SIZE;
+		if base_address >= rom_length {
+			&mut self.rom[0..0]  //this doesn't exist so return an empty slice
+		}
+		else {
+			let end_address = base_address + ROM_BANK_SIZE;
+			if end_address >= rom_length {
+				&mut self.rom[base_address..rom_length]
+			}
+			else {
+				&mut self.rom[base_address..end_address]
+			}
+		}
+	}
+
+	fn ram(&self) -> &[u8] {
+		let ram_bank = self.mbc.ram_bank();
+		let base_address = ram_bank * RAM_BANK_SIZE;
+		if base_address >= self.ram.len() {
+			&self.ram[0..0]
+		}
+		else {
+			let end_address = base_address + RAM_BANK_SIZE;
+			if end_address >= self.ram.len() {
+				&self.ram[base_address..self.ram.len()]
+			}
+			else {
+				&self.ram[base_address..end_address]
+			}
+		}
+	}
+
+	fn ram_mut(&mut self) -> &mut[u8] {
+		let ram_bank = self.mbc.ram_bank();
+		let ram_length = self.ram.len();
+		let base_address = ram_bank * RAM_BANK_SIZE;
+		if base_address >= ram_length {
+			&mut self.ram[0..0]
+		}
+		else {
+			let end_address = base_address + RAM_BANK_SIZE;
+			if end_address >= ram_length {
+				&mut self.ram[base_address..ram_length]
+			}
+			else {
+				&mut self.ram[base_address..end_address]
+			}
+		}
 	}
 }
