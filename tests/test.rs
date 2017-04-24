@@ -4,6 +4,7 @@ extern crate image;
 use std::fs::{read_dir, create_dir, File};
 use std::io::{Read, Error, Write};
 use std::path::Path;
+use std::thread;
 
 use std::vec::Vec;
 
@@ -29,11 +30,11 @@ fn run_test_rom(path: String) -> Result<Vec<u32>,String> {
 
 	let gameboy = rustboy_core::init(rom.unwrap(), None);
 	if let Err(ref msg) = gameboy {
-		return Err(format!("Test rom {} failed with error {}.", path.clone(), msg));
+		return Err(format!("{}.", msg));
 	}
 	let mut gameboy = gameboy.unwrap();
 
-	for frame in 0..TEST_FRAMES {
+	for _ in 0..TEST_FRAMES {
 		gameboy.step_frame();
 	}
 
@@ -65,25 +66,44 @@ fn save_screenshot(path: String, raw: Vec<u32>) -> Result<(), std::io::Error> {
 fn test_rom_runner() {
 	create_dir("tests/results");	//Create a directory for screenshots
 	let mut log = File::create("tests/results/test_log.txt").expect("Failed to create log file.");
-
 	let dir = read_dir("tests/test_roms").expect("Test rom directory doesn't exist. Place test roms in tests/test_roms to run them.");
+	let mut runners = Vec::new();
 
 	for item in dir {
-		if let Ok(ref entry) = item {
-			writeln!(&mut log, "Running rom file {:?}", entry.file_name()).unwrap();
+		if let Ok(entry) = item {
+			let path = entry.file_name().into_string().unwrap();
+			let handle = thread::spawn(move || {
+				let mut info = Vec::new();
+				info.push(format!("Running rom file {:?}", entry.file_name()));
+				let file_path = entry.path().into_os_string().into_string().unwrap();
+				let gb_result = run_test_rom(file_path);
+				if let Ok(screenshot) = gb_result {
+					let screenshot_path = format!("tests/results/{}.png", entry.file_name().into_string().unwrap());
+					let sc_result = save_screenshot(screenshot_path, screenshot);
+					match sc_result {
+						Ok(()) => info.push(format!("test complete")),
+						Err(error) => info.push(format!("{}", error)), /* Error saving screenshot */
+					};
+				}
+				else if let Err(error) = gb_result {
+					info.push(format!("Running rom {:?} failed with error: {}", entry.file_name(), error))
+				}
+				return info;
+			});
+			runners.push((path, handle));
+		}
+	}
 
-			let file_path = entry.path().into_os_string().into_string().unwrap();
-			let gb_result = run_test_rom(file_path);
-			if let Ok(screenshot) = gb_result {
-				let screenshot_path = format!("tests/results/{}.png", entry.file_name().into_string().unwrap());
-				let sc_result = save_screenshot(screenshot_path, screenshot);
-				match sc_result {
-					Ok(()) => {},
-					Err(error) => writeln!(&mut log, "{}", error).unwrap(), /* Error saving screenshot */
-				};
-			}
-			else if let Err(error) = gb_result {
-				writeln!(&mut log, "Running rom {:?} failed with error: {}", entry.file_name(), error).unwrap();
+	for (path, handle) in runners {
+		match handle.join() {
+			Ok(test_info) => {
+				for line in test_info {
+					writeln!(&mut log, "{}", line);
+				}
+				writeln!(&mut log, "");
+			},
+			Err(panic_info) => {
+				writeln!(&mut log, "{} panicked with argument {:?}", path, panic_info);
 			}
 		}
 	}
