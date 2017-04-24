@@ -95,6 +95,8 @@ pub trait DebuggerInterface {
 	fn write_range(&mut self, address_start: u16, values: &[u8]);
 
 	fn get_assembly(&self, ins: &[u8]) -> Vec<String>;
+
+	fn reset(&mut self);
 }
 
 impl DebuggerInterface for Gameboy {
@@ -270,5 +272,19 @@ impl DebuggerInterface for Gameboy {
 
 	fn get_assembly(&self, ins: &[u8]) -> Vec<String> {
 		assembly::get_assembly(ins)
+	}
+
+	fn reset(&mut self) {
+		use gameboy::Mode;
+		let mode: Mode = match self.cart.get_cart_info().cgb {
+			true => Mode::CGB,
+			false => Mode::DMG,
+		};
+		self.cpu.reset(mode);
+		self.timer.reset();
+		self.ppu.reset();
+		self.oam_dma_active = false;
+		self.oam_dma_start_address = 0;
+		self.oam_dma_current_offset = 0;
 	}
 }

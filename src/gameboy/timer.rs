@@ -33,6 +33,14 @@ impl Timer {
 		}
 	}
 
+	pub fn reset(&mut self) {
+		self.div = 0;
+		self.tima = 0;
+		self.tma = 0;
+		self.tac = 0;
+		self.int_requested = false;
+	}
+
 	///Called every M-Cycle (4 clock cycles)
 	pub fn emulate_hardware(&mut self, io: &mut [u8]) {
 		//Read back registers

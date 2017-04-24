@@ -1,3 +1,5 @@
+use gameboy::Mode;
+
 pub const ZERO_FLAG: u8 = 1 << 7;
 pub const SUBTRACTION_FLAG: u8 = 1 << 6;
 pub const HALF_CARRY_FLAG: u8 = 1 << 5;
@@ -43,6 +45,19 @@ impl CPU {
 			hram: [0; HRAM_SIZE],
 			double_speed_mode: false,
 		}
+	}
+
+	pub fn reset(&mut self, mode: Mode) {
+		match mode {
+			Mode::DMG => self.registers.init_dmg(),
+			Mode::CGB => self.registers.init_cgb(),
+		};
+		self.ime = false;
+		self.next_ime_state = false;
+		self.ier = 0;
+		self.stop = false;
+		self.halt = false;
+		self.double_speed_mode = false;
 	}
 
 	pub fn read_byte_hram(&self, address: u16) -> u8 {
@@ -101,7 +116,8 @@ impl fmt::Debug for Registers {
 impl Registers {
 	pub fn new() -> Registers {
 		let mut regs: Registers = Default::default();
-		regs.init_cgb();
+		regs.init_dmg();
+		//regs.init_cgb();
 		regs
 	}
 

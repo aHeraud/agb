@@ -46,6 +46,8 @@ pub trait PPU {
 	fn is_lcdstat_requested(&self) -> bool;
 	fn clear_interrupts(&mut self);
 
+	fn reset(&mut self);
+
 	///Gets a pointer to the framebuffer, which is an 160*144 RGBA array of u32's that represents
 	///the contents of the gameboys screen
 	fn get_framebuffer(&self) -> &[u32];

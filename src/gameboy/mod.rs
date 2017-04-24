@@ -33,7 +33,7 @@ pub enum Interrupt {
 	VBlank, LcdStat, Timer, Serial, Joypad
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mode {
 	DMG, CGB,
 }

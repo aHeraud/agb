@@ -175,7 +175,7 @@ impl VirtualCartridge {
 		let cart_info: CartInfo = try!(CartInfo::new(&rom));
 
 		//TODO: expand ram if the ram file loaded is too small (and give a warning?)
-		//TODO: rom as well
+		//TODO: rom as well?
 		let ram = match ram {
 			Some(ram) => ram,
 			None => {

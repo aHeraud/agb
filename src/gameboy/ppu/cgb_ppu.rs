@@ -19,17 +19,22 @@ impl CgbPpu {
 }
 
 impl PPU for CgbPpu {
-	fn emulate_hardware(&mut self, io: &mut [u8]) {
+	fn reset(&mut self) {
+		//TODO
+	}
 
+	fn emulate_hardware(&mut self, io: &mut [u8]) {
+		//TODO
 	}
 
 	fn init_io_registers(&mut self, io: &mut [u8]) {
-
+		//TODO
 	}
 
 	///Read a byte from the vram as the cpu.
 	///When the ppu is in mode 3, the cpu can't access vram, so 0xFF is returned instead
 	fn read_byte_vram(&self, io: &[u8], address: u16) -> u8 {
+		//TODO: banks
 		match address {
 			0x8000...0x9FFF => {
 				let mode: u8 = io[0x41] & 3;
@@ -47,6 +52,7 @@ impl PPU for CgbPpu {
 	}
 
 	fn write_byte_vram(&mut self, io: &[u8], address: u16, value: u8) {
+		//TODO: banks
 		match address {
 			0x8000...0x9FFF => {
 				let mode: u8 = io[0x41] & 3;

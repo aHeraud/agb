@@ -260,10 +260,19 @@ impl DmgPpu {
 			//END DRAW_SPRITE
 		}
 	}
-
 }
 
 impl PPU for DmgPpu {
+	fn reset(&mut self) {
+		self.front_buffer_index = 1;
+		self.back_buffer_index = 0;
+		self.mode = PpuMode::HBLANK;
+		self.line = 0;
+		self.clock = 0;
+		self.vblank_requested = false;
+		self.lcdstat_requested = false;
+	}
+
 	fn emulate_hardware(&mut self, io: &mut [u8]) {
 		let lcdc: u8 = io[0x40];
 		if lcdc & 128 == 0 {
