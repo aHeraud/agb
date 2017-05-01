@@ -270,7 +270,7 @@ pub fn get_assembly_for_instruction(slice: &[u8]) -> Result<String,()> {
 			0xE2 => format!("LD (C), A"),
 			//E3..E4 INVALID
 			0xE5 => format!("PUSH HL"),
-			0xE6 => format!("AND d8"),
+			0xE6 => format!("AND {}", slice[1]),
 			0xE7 => format!("RST 20H"),
 			0xE8 => format!("ADD SP, {:X}", slice[1] as i8),
 			0xE9 => format!("JP HL"),

@@ -131,4 +131,27 @@ impl PPU for CgbPpu {
 	fn get_oam_mut(&mut self) -> &mut[u8] {
 		&mut self.oam
 	}
+
+	///get a bitmap with all of the tiles in vram
+	///returns a bitmap of 32-bit rgba pixel values
+	///TODO: implement
+	fn dump_tiles(&self)  -> super::Bitmap<u32> {
+		let empty: Vec<u32> = Vec::new();
+		super::Bitmap {
+			width: 0,
+			height: 0,
+			data: empty.into_boxed_slice()
+		}
+	}
+
+	//get a bitmap of the bg
+	//TODO: implement
+	fn dump_bg(&self, io: &[u8]) -> super::Bitmap<u32> {
+		let empty: Vec<u32> = Vec::new();
+		super::Bitmap {
+			width: 0,
+			height: 0,
+			data: empty.into_boxed_slice()
+		}
+	}
 }

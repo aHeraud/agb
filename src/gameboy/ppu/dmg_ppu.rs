@@ -7,7 +7,7 @@ use core::num::Wrapping;
 #[cfg(not(feature = "no_std"))]
 use std::num::Wrapping;
 
-use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode};
+use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap};
 use super::{COINCIDENCE_INTERRUPT_ENABLE_MASK, OAM_INTERUPT_ENABLE_MASK, VBLANK_INTERRUPT_ENABLE_MASK, HBLANK_INTERRUPT_ENABLE_MASK};
 
 /* RGBA shades for dmg */
@@ -260,6 +260,56 @@ impl DmgPpu {
 			//END DRAW_SPRITE
 		}
 	}
+
+	///get a raw tile (no coloring, only 2 bit value for each pixel)
+	///returns a tuple with the values (width, size, tile).
+	fn get_tile_raw(&self, tile_number: usize) -> Bitmap<u8> {
+		const TILE_WIDTH: usize = 8;
+		const TILE_HEIGHT: usize = 8;
+		let tile_address = tile_number * 16;
+
+		let mut tile_data = {
+			let mut buf = Vec::with_capacity(TILE_WIDTH * TILE_HEIGHT);
+			buf.resize(TILE_WIDTH * TILE_HEIGHT, 0);
+			buf.into_boxed_slice()
+		};
+
+		for y in 0..TILE_HEIGHT {
+			let tile_2: u8 = self.vram[tile_address + (y * 2)];
+			let tile_1: u8 = self.vram[tile_address + (y * 2) + 1];
+			for x in 0..TILE_WIDTH {
+				let value: u8 = ((tile_1 >> (7 - x) << 1) & 2) | ((tile_2 >> (7 - x)) & 1);
+				tile_data[(y * TILE_WIDTH) + x] = value;
+			}
+		}
+
+		Bitmap {
+			width: TILE_WIDTH,
+			height: TILE_HEIGHT,
+			data: tile_data,
+		}
+	}
+
+	///gets the bitmap of a tile, colored according to the pallete passed in
+	fn get_tile(&self, tile_number: usize, bgp: u8) -> Bitmap<u32> {
+		let raw = self.get_tile_raw(tile_number);
+		let mut data = {
+			let mut buf = Vec::with_capacity(raw.width * raw.height);
+			buf.resize(raw.width * raw.height, 0);
+			buf.into_boxed_slice()
+		};
+
+		for (index, value) in raw.data.iter().enumerate() {
+			let shade = (bgp >> ((*value as usize) << 1)) & 3;
+			data[index] = self.shades[shade as usize];
+		}
+
+		Bitmap {
+			width: raw.width,
+			height: raw.height,
+			data: data
+		}
+	}
 }
 
 impl PPU for DmgPpu {
@@ -494,5 +544,112 @@ impl PPU for DmgPpu {
 
 	fn get_oam_mut(&mut self) -> &mut[u8] {
 		&mut self.oam
+	}
+
+	///get a bitmap with all of the tiles in vram
+	///returns (width, height, bitmap_data)
+	fn dump_tiles(&self) -> Bitmap<u32> {
+		use std::mem;
+		const NUM_TILES: usize = 384;
+		const TILE_WIDTH: usize = 8;
+		const TILE_HEIGHT: usize = 8;
+		const COLS: usize = 16;
+		const ROWS: usize = 24;
+
+		let mut tiles: [Bitmap<u8>; NUM_TILES] = unsafe { mem::zeroed() };
+		for i in 0..tiles.len() {
+			tiles[i] = self.get_tile_raw(i);
+		}
+
+		let mut bitmap = {
+			let mut buf = Vec::with_capacity(8 * 8 * NUM_TILES);
+			buf.resize(8 * 8 * NUM_TILES, 0);
+			buf.into_boxed_slice()
+		};
+
+		for (index, tile) in tiles.iter().enumerate() {
+			let row: usize = index / COLS;
+			let col: usize = index % COLS;
+			let index: usize = (row * COLS * TILE_WIDTH * TILE_HEIGHT) + (col * TILE_WIDTH);
+			for y in 0..tile.height {
+				for x in 0..tile.width {
+					let offset: usize = (y * TILE_WIDTH * COLS) + x;
+					bitmap[index + offset] = self.shades[tile.data[(y * tile.width) + x] as usize];
+				}
+			}
+		}
+
+		Bitmap {
+			width: TILE_WIDTH * COLS,
+			height: TILE_HEIGHT * ROWS,
+			data: bitmap,
+		}
+	}
+
+	fn dump_bg(&self, io: &[u8]) -> Bitmap<u32> {
+		const ROWS: usize = 32;
+		const COLS: usize = 32;
+		const TILE_WIDTH: usize = 8;
+		const TILE_HEIGHT: usize = 8;
+
+		let mut data = {
+			let mut buf = Vec::with_capacity(ROWS * COLS * TILE_WIDTH * TILE_HEIGHT);
+			buf.resize(ROWS * COLS * TILE_WIDTH * TILE_HEIGHT, 0);
+			buf.into_boxed_slice()
+		};
+		let bgp = io[0x47];
+		let lcdc = io[0x40];
+		let tile_map_address = match lcdc & 8 {
+			0 => 0x9800,
+			_ => 0x9c00,
+		};
+		let tile_data_address = match lcdc & 16 {
+			0 => 0x8800,
+			_ => 0x8000,
+		};
+
+		//draw bg tiles
+		for row in 0..ROWS {
+			for col in 0..COLS {
+				let mut tile_number = self.vram[tile_map_address - 0x8000 + (row * COLS) + col] as usize;
+				if tile_data_address == 0x8800 {
+					//signed tile numbers, tile # 0 is at 0x9000, -192 is at 0x8800
+					//convert to unsigned, where tile 0 is at -x8800
+					let signed_tile_number = tile_number as i8;
+					tile_number = ((signed_tile_number as isize) + 128) as usize;
+
+					//the tile at address 0x8800 is actually tile 128, not 0
+					tile_number += 128;
+				}
+				let tile = self.get_tile(tile_number, bgp);
+				let bitmap_index: usize = (row * TILE_WIDTH * COLS * TILE_HEIGHT) + (col * TILE_WIDTH);
+				for y in 0..tile.height {
+					for x in 0..tile.width {
+						let offset = (y * COLS * TILE_WIDTH) + x;
+						data[bitmap_index + offset] = tile.data[(y * tile.width) + x];
+					}
+				}
+			}
+		}
+
+		//TODO: draw window on top
+		let window_enabled = match lcdc & 32 {
+			0 => false,
+			_ => true,
+		};
+		let window_tile_map_address = match lcdc & 64 {
+			0 => 0x9800,
+			_ => 0x9C00,
+		};
+		let wx = io[0x4A];
+		let wy = io[0x4B] + 7;
+
+
+		Bitmap {
+			width: COLS * TILE_WIDTH,
+			height: ROWS * TILE_HEIGHT,
+			data: data,
+		}
+
 	}
 }

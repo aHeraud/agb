@@ -14,6 +14,13 @@ pub const HBLANK_INTERRUPT_ENABLE_MASK: u8 = 8;
 pub const VBLANK_INTERRUPT_BIT: u8 = 1;
 pub const LCDSTAT_INTERRUPT_BIT: u8 = 2;
 
+//bitmap\
+pub struct Bitmap<T> {
+	pub width: usize,
+	pub height: usize,
+	pub data: Box<[T]>,
+}
+
 #[allow(non_camel_case_types)]
 pub enum PpuMode {
 	HBLANK, VBLANK, SEARCH_OAM, TRANSFER_TO_LCD
@@ -58,4 +65,6 @@ pub trait PPU {
 	fn get_vram_mut(&mut self) -> &mut[u8];
 	fn get_oam(&self) -> &[u8];
 	fn get_oam_mut(&mut self) -> &mut[u8];
+	fn dump_tiles(&self) -> Bitmap<u32>;
+	fn dump_bg(&self, io: &[u8]) -> Bitmap<u32>;
 }

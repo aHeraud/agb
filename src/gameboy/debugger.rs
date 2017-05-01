@@ -8,6 +8,7 @@ use gameboy::Gameboy;
 use gameboy::cpu::{ Registers, Register, RegisterPair };
 use gameboy::mmu::Mmu;
 use gameboy::assembly;
+use gameboy::ppu::Bitmap;
 
 type BreakpointCallback = FnMut(Breakpoint);
 
@@ -95,6 +96,9 @@ pub trait DebuggerInterface {
 	fn write_range(&mut self, address_start: u16, values: &[u8]);
 
 	fn get_assembly(&self, ins: &[u8]) -> Vec<String>;
+
+	fn dump_tiles(&self) -> Bitmap<u32>;
+	fn dump_bg(&self) -> Bitmap<u32>;
 
 	fn reset(&mut self);
 }
@@ -286,5 +290,13 @@ impl DebuggerInterface for Gameboy {
 		self.oam_dma_active = false;
 		self.oam_dma_start_address = 0;
 		self.oam_dma_current_offset = 0;
+	}
+
+	fn dump_tiles(&self) -> Bitmap<u32> {
+		self.ppu.dump_tiles()
+	}
+
+	fn dump_bg(&self) -> Bitmap<u32> {
+		self.ppu.dump_bg(&self.io)
 	}
 }
