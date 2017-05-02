@@ -436,7 +436,6 @@ impl PPU for DmgPpu {
 		stat |= mode | 0x80;	//High bit of stat always set
 
 		io[0x41] = stat;
-
 		io[0x44] = self.line;
 	}
 
@@ -635,18 +634,17 @@ impl PPU for DmgPpu {
 			}
 		}
 
-		//TODO: draw window on top
-		let window_enabled = match lcdc & 32 {
-			0 => false,
-			_ => true,
-		};
-		let window_tile_map_address = match lcdc & 64 {
-			0 => 0x9800,
-			_ => 0x9C00,
-		};
-		let wx = io[0x4A];
-		let wy = io[0x4B] + 7;
-
+		//TODO: draw window on top?
+		//let window_enabled = match lcdc & 32 {
+		//	0 => false,
+		//	_ => true,
+		//};
+		//let window_tile_map_address = match lcdc & 64 {
+		//	0 => 0x9800,
+		//	_ => 0x9C00,
+		//};
+		//let wx = io[0x4A];
+		//let wy = io[0x4B] + 7;
 
 		Bitmap {
 			width: COLS * TILE_WIDTH,

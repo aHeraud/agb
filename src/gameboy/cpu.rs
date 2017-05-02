@@ -13,8 +13,10 @@ use std::fmt;
 
 const HRAM_SIZE: usize = 127;
 
-//On the DMG/CGB the EI instruction, the value of ime isn't changed until after the next instruction,
-///On the CGB, the same applies to the DI instruction (but not on the DMG)
+///On the DMG/CGB the EI instruction, the value of ime isn't changed until after the next instruction,
+///I assume this is because of instruction pipelining, and the next instruction has been fetched before
+///interrupts have been enabled.
+///On the CGB, the same applies to the DI instruction (but not on the DMG) allegedly
 
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone)]

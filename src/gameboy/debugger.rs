@@ -198,32 +198,172 @@ impl DebuggerInterface for Gameboy {
 			                       0xDF, 0xE7, 0xE9, 0xEF, 0xF7, 0xFF];
 			if let Ok(_) = JUMPS.binary_search(&next_opcode) {
 				//the next instruction is some sort of jump, look at where it points.
+				let address =
 				if JR.contains(&next_opcode) {
-					//next instruction is jr
+					//next instruction is jr, so the address is relative (signed byte offset)
+					let pc = self.cpu.registers.pc;
+					let offset = self.read_byte(pc + 1);
+					((pc as i32) + ((offset as i8) as i32)) as u16
 				}
-				else if JP.contains(&next_opcode) {
-					//next instruction is jp
-				}
-				else if CALL.contains(&next_opcode) {
-					//next instruction is call
+				else if JP.contains(&next_opcode) || CALL.contains(&next_opcode) {
+					//next instruction is jp or call (1 byte opcode followed by 2 byte address)
+					let pc = self.cpu.registers.pc;
+					let high = self.read_byte(pc + 2) as u16;
+					let low = self.read_byte(pc + 1) as u16;
+					(high << 8) | low
 				}
 				else if RET.contains(&next_opcode) {
 					//next instruction is ret
 					//the return address is at the top of the stack
+					let sp = self.cpu.registers.sp;
+					let high = self.read_byte(sp + 1) as u16;
+					let low = self.read_byte(sp) as u16;
+					(high << 8) | low
 				}
 				else if RST.contains(&next_opcode) {
 					//next instrcution is rst
 					//look up the address
+					match next_opcode {
+						0xC7 => 0,
+						0xCF => 0x8,
+						0xD7 => 0x10,
+						0xDF => 0x18,
+						0xE7 => 0x20,
+						0xEF => 0x2F,
+						0xF7 => 0x30,
+						0xFF => 0x48,
+						_ => panic!()
+					}
+				}
+				else {
+					panic!("oops");
+				};
+
+				let breakpoint = Breakpoint::new(address, AccessType::Jump);
+				if let Ok(index) = self.debugger.breakpoints.binary_search(&breakpoint) {
+					//there is a breakpoint on the next instruction
+					return Some(self.debugger.breakpoints[index]);
+				}
+			}
+
+			//TODO: read
+			const READ_AT_BC: u8 = 0x0A;
+			const READ_AT_DE: u8 = 0x1A;
+			const READ_IO_A8: u8 = 0xF0;
+			const READ_IO_C: u8 = 0xF2; //read from 0xFF00 + C
+			const READ_A16: u8 = 0xFA;
+			const READ_AT_HL: [u8;20] =
+			[0x2A, 0x34, 0x35, 0x3A, 0x46, 0x4E, 0x56, 0x5E, 0x66, 0x6E, 0x7E, 0x86, 0x8E, 0x96, 0x9E,
+			0xA6, 0xAE, 0xB6, 0xBE, 0xE9];
+			const READ_AT_HL_EXTENDED: [u8;16] =
+			[0x06, 0x0E, 0x16, 0x1E, 0x26, 0x2E, 0x36, 0x3E, 0x46, 0x4E, 0x56, 0x5E, 0x66, 0x6E, 0x76, 0x7E];
+
+			const READS: [u8;25] = [READ_AT_BC, READ_AT_DE, 0x2A, 0x34, 0x35, 0x3A, 0x46, 0x4E, 0x56, 0x5E, 0x66, 0x6E, 0x7E, 0x86, 0x8E, 0x96, 0x9E,
+			0xA6, 0xAE, 0xB6, 0xBE, 0xE9, READ_IO_A8, READ_IO_C, READ_A16];
+
+			let mut address: Option<u16> = None;
+			if let Ok(_) = READS.binary_search(&next_opcode) {
+				if next_opcode == READ_AT_BC {
+					let b = self.cpu.registers.b as u16;
+					let c = self.cpu.registers.c as u16;
+					address = Some((b << 8) | c);
+				}
+				else if next_opcode == READ_AT_DE {
+					let d = self.cpu.registers.d as u16;
+					let e = self.cpu.registers.e as u16;
+					address = Some((d << 8) | e);
+				}
+				else if next_opcode == READ_IO_A8 {
+					address = Some(0xFF00 + (self.read_byte(self.cpu.registers.pc + 1) as u16));
+				}
+				else if next_opcode == READ_IO_C {
+					address = Some(0xFF00 + (self.cpu.registers.c as u16));
+				}
+				else if next_opcode == READ_A16 {
+					let pc = self.cpu.registers.pc + 1;
+					address = Some((self.read_byte(pc) as u16) | ((self.read_byte(pc + 1) as u16) << 8));
+				}
+				else if let Ok(_) = READ_AT_HL.binary_search(&next_opcode) {
+					let h = self.cpu.registers.h as u16;
+					let l = self.cpu.registers.l as u16;
+					address = Some((h << 8) | l);
 				}
 				else {
 					panic!("oops");
 				}
 			}
+			else if next_opcode == 0xCB {
+				let next_opcode = self.read_byte(self.cpu.registers.pc + 1);
+				if let Ok(_) = READ_AT_HL_EXTENDED.binary_search(&next_opcode) {
+					let h = self.cpu.registers.h as u16;
+					let l = self.cpu.registers.l as u16;
+					address = Some((h << 8) | l);
+				}
+			}
+			if let Some(addr) = address {
+				let breakpoint = Breakpoint::new(addr, AccessType::Read);
+				if let Ok(index) = self.debugger.breakpoints.binary_search(&breakpoint) {
+					return Some(self.debugger.breakpoints[index]);
+				}
+			}
 
-			//TODO: read
 			//TODO: write
-		}
+			const WRITE_AT_BC: u8 = 0x02;
+			const WRITE_AT_DE: u8 = 0x12;
+			const WRITE_A16: [u8;2] = [0x08, 0xEA];
+			const WRITE_IO_A8: u8 = 0xE0;
+			const WRITE_IO_C: u8 = 0xE2;
+			const WRITE_AT_HL: [u8;12] = [0x22, 0x32, 0x34, 0x35, 0x36, 0x70, 0x71, 0x72, 0x73,
+			                              0x74, 0x75, 0x77];
+			const WRITE_AT_HL_EXTENDED: [u8;24] = [0x06, 0x0E, 0x16, 0x1E, 0x26, 0x2E, 0x36, 0x3E,
+			                                       0x86, 0x8E, 0x96, 0x9E, 0xA6, 0xAE, 0xB6, 0xBE,
+			                                       0xC6, 0xCE, 0xD6, 0xDE, 0xE6, 0xEE, 0xF6, 0xFE];
+			const WRITES: [u8;18] = [0x02, 0x08, 0x12, 0x22, 0x32, 0x34, 0x35, 0x36, 0x70, 0x71,
+			                         0x72, 0x73, 0x74, 0x75, 0x77, 0xE0, 0xE2, 0xEA];
 
+			let mut address: Option<u16> = None;
+			if let Ok(_) = WRITES.binary_search(&next_opcode) {
+				if let Ok(_) = WRITE_AT_HL.binary_search(&next_opcode) {
+					let h = self.cpu.registers.h as u16;
+					let l = self.cpu.registers.l as u16;
+					address = Some((h << 8) | l);
+				}
+				else if let Ok(_) = WRITE_A16.binary_search(&next_opcode) {
+					let pc = self.cpu.registers.pc + 1;
+					address = Some((self.read_byte(pc) as u16) | ((self.read_byte(pc + 1) as u16) << 8));
+				}
+				else if next_opcode == WRITE_IO_A8 {
+					address = Some((self.read_byte(self.cpu.registers.pc + 1) as u16) + 0xFF00);
+				}
+				else if next_opcode == WRITE_AT_BC {
+					let b = self.cpu.registers.b as u16;
+					let c = self.cpu.registers.c as u16;
+					address = Some((b << 8) | c);
+				}
+				else if next_opcode == WRITE_AT_DE {
+					let d = self.cpu.registers.d as u16;
+					let e = self.cpu.registers.e as u16;
+					address = Some((d << 8) | e);
+				}
+				else if next_opcode == WRITE_IO_C {
+					address = Some(0xFF00 + (self.cpu.registers.c as u16));
+				}
+			}
+			else if next_opcode == 0xCB {
+				let next_opcode = self.read_byte(self.cpu.registers.pc + 1);
+				if let Ok(_) = WRITE_AT_HL_EXTENDED.binary_search(&next_opcode) {
+					let h = self.cpu.registers.h as u16;
+					let l = self.cpu.registers.l as u16;
+					address = Some((h << 8) | l);
+				}
+			}
+			if let Some(address) = address {
+				let breakpoint = Breakpoint::new(address, AccessType::Write);
+				if let Ok(index) = self.debugger.breakpoints.binary_search(&breakpoint) {
+					return Some(self.debugger.breakpoints[index]);
+				}
+			}
+		}
 		None
 	}
 
