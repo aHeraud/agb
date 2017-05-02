@@ -148,7 +148,7 @@ impl DmgPpu {
 			else {
 				//Neither the background or window are enabled at this pixel
 				//On an actual gameboy color, background_enabled being false means that neither
-				//the background or window are shown, however, on the dmg it's possible to disabled
+				//the background or window are shown, however, on the dmg it's possible to disable
 				//the background and still draw the window.
 				background[x as usize] = 0;
 				continue;
@@ -157,11 +157,14 @@ impl DmgPpu {
 			let mut tile_number: usize = self.vram[map_address - 0x8000] as usize;
 			if tile_data == 0x8800 {
 				//Convert from signed tile numbers into unsigned offset
-				tile_number = tile_number.wrapping_add(128);
+				//and then add 128, because tile 0 is now actualy tile 128 (skip first 0x800 bytes
+				//of tiles)
+				let signed_tile_number = self.vram[map_address - 0x8000] as i8;
+				tile_number = ((signed_tile_number as isize) + 256) as  usize;
 			}
 
 			//Read tile data
-			let tile_address: usize = tile_data + (tile_number * 16) + (((y_pos as usize) % 8) * 2);
+			let tile_address: usize = 0x8000 + (tile_number * 16) + (((y_pos as usize) % 8) * 2);
 			let tile_2: u8 = self.vram[tile_address - 0x8000];
 			let tile_1: u8 = self.vram[tile_address + 1 - 0x8000];
 
