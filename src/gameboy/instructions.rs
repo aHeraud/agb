@@ -436,8 +436,8 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn ld_r8_d8(&mut self, reg: Register) {
 		let imm: u8 = self.read_next();
-		self.set_register(reg, imm);
 		self.emulate_hardware();
+		self.set_register(reg, imm);
 	}
 
 	///0x09: ADD HL, r16
