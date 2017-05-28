@@ -246,7 +246,6 @@ impl DebuggerInterface for Gameboy {
 				}
 			}
 
-			//TODO: read
 			const READ_AT_BC: u8 = 0x0A;
 			const READ_AT_DE: u8 = 0x1A;
 			const READ_IO_A8: u8 = 0xF0;
@@ -307,7 +306,6 @@ impl DebuggerInterface for Gameboy {
 				}
 			}
 
-			//TODO: write
 			const WRITE_AT_BC: u8 = 0x02;
 			const WRITE_AT_DE: u8 = 0x12;
 			const WRITE_A16: [u8;2] = [0x08, 0xEA];
