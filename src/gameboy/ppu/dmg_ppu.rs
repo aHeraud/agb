@@ -330,6 +330,11 @@ impl PPU for DmgPpu {
 		let lcdc: u8 = io[0x40];
 		if lcdc & 128 == 0 {
 			//Bit 7 of LCDC is zero, so lcd is disabled
+			//dr.mario disables the lcd then waits for mode to be 0, so
+			//maybe when the lcd is disabled something special happens other than
+			//just pausing, this needs to be tested more.
+			let stat: u8 = 0x80;
+			io[0x41] = stat;
 			return;
 		}
 
