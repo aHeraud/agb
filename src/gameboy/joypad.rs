@@ -93,6 +93,6 @@ impl Joypad {
         }
 
         //Convert to active low and return
-        !((high & 0xF0) | (low & 0x0F))
+        (!((high & 0xF0) | (low & 0x0F))) & 0xCF
     }
 }
