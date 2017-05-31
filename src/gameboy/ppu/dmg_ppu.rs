@@ -1,10 +1,3 @@
-#[cfg(feature = "no_std")]
-use alloc::boxed::Box;
-
-#[cfg(feature = "no_std")]
-use core::num::Wrapping;
-
-#[cfg(not(feature = "no_std"))]
 use std::num::Wrapping;
 
 use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap};

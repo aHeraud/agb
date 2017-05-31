@@ -1,17 +1,4 @@
 #![feature(inclusive_range_syntax)]
-/* */
-#![cfg_attr(feature = "no_std", no_std)]
-#![cfg_attr(feature = "no_std", feature(alloc))]
-#![cfg_attr(feature = "no_std", feature(collections))]
-
-#[cfg(feature = "no_std")]
-extern crate alloc;
-
-#[cfg(feature = "no_std")]
-extern crate collections;
-
-#[cfg(feature = "no_std")]
-use alloc::boxed::Box;
 
 pub mod gameboy;
 //pub mod debugger;

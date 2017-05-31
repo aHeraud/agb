@@ -1,7 +1,3 @@
-#[cfg(feature = "no_std")]
-use collections::vec::Vec;
-
-#[cfg(not(feature = "no_std"))]
 use std::vec::Vec;
 
 use gameboy::Gameboy;

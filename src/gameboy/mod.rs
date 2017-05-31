@@ -9,9 +9,6 @@ pub mod debugger;
 mod assembly;
 mod util;
 
-#[cfg(feature = "no_std")]
-use alloc::boxed::Box;
-
 use gameboy::mmu::Mmu;
 use gameboy::cpu::{Register, CPU};
 use gameboy::ppu::PPU;

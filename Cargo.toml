@@ -3,10 +3,9 @@ name = "rustboy-core"
 version = "0.1.0"
 authors = ["Atlas <achille@heraud.xyz>"]
 
+[features]
+
 [dependencies]
 
 [dev-dependencies]
 image = "0.10.4"
-
-[features]
-no_std = [] #Build without the standard library
