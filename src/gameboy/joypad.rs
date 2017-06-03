@@ -43,6 +43,12 @@ impl Joypad {
 		self.keys[index] = false;
 	}
 
+	///Query the state of a button
+	pub fn key_state(&self, key: Key) -> bool {
+		let index = get_index(key);
+		self.keys[index]
+	}
+
 	///Used to select buttons/dpad
 	///only bits 4 and 5 are writeable
 	///bit 5: p15 = select button keys (0 = select)

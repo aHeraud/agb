@@ -8,6 +8,7 @@ use gameboy::joypad::Key;
 
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
+pub const FPS: f64 = 59.7_f64;
 
 ///Initialize the gameboy and load a rom file (and optionally a ram file)
 pub fn init(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Box<Gameboy>, & 'static str> {
