@@ -97,6 +97,8 @@ pub trait DebuggerInterface {
 	fn dump_bg(&self) -> Bitmap<u32>;
 
 	fn reset(&mut self);
+
+	fn trace(&self) -> String;
 }
 
 impl DebuggerInterface for Gameboy {
@@ -432,5 +434,24 @@ impl DebuggerInterface for Gameboy {
 
 	fn dump_bg(&self) -> Bitmap<u32> {
 		self.ppu.dump_bg(&self.io)
+	}
+
+	///Returns a string containing some debug info about the current state of the emulator core
+	fn trace(&self) -> String {
+		let a = self.cpu.registers.a;
+		let f = self.cpu.registers.f & 0xF0;
+		let bc = self.cpu.registers.get_register_pair(RegisterPair::BC);
+		let de = self.cpu.registers.get_register_pair(RegisterPair::DE);
+		let hl = self.cpu.registers.get_register_pair(RegisterPair::HL);
+		let sp = self.cpu.registers.sp;
+		let pc = self.cpu.registers.pc;
+
+		let zf = if f & 0x80 != 0 { "Z" } else { "-" };
+		let sf = if f & 0x40 != 0 { "N" } else { "-" };
+		let hc = if f & 0x20 != 0 { "H" } else { "-" };
+		let cf = if f & 0x10 != 0 { "C" } else { "-" };
+		let flags = format!("{}{}{}{}", zf, sf, hc, cf);
+
+		format!("A:{:02x} F:{} BC:{:04x} DE:{:04x} HL:{:04x} SP:{:04x} PC:{:04x} (cy: {}) DIV:{:04x}", a, flags, bc, de, hl, sp, pc, self.cpu.cycle_counter * 4, self.timer.get_div())
 	}
 }
