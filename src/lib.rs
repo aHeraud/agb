@@ -1,5 +1,7 @@
 #![feature(inclusive_range_syntax)]
 
+extern crate time;
+
 pub mod gameboy;
 //pub mod debugger;
 use gameboy::Gameboy;

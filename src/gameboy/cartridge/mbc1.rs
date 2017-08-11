@@ -77,7 +77,7 @@ impl MemoryBankController for MBC1 {
 		};
 	}
 
-	fn write_byte_ram(&self, ram: &mut Box<[u8]>, ram_size: usize, address: u16, value: u8) {
+	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, address: u16, value: u8) {
 		let mut ram_bank: u8 = 0;
 		if self.mode == ModeSelect::Ram {
 			ram_bank |= self.ram_bank;

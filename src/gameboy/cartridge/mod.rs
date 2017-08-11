@@ -1,11 +1,13 @@
 mod nombc;
 mod mbc1;
+mod mbc3;
 
 use gameboy::cartridge::nombc::NoMBC;
 use gameboy::cartridge::mbc1::MBC1;
+use gameboy::cartridge::mbc3::MBC3;
 
-const ROM_BANK_SIZE: usize = 0x4000;
-const RAM_BANK_SIZE: usize = 0x2000;
+pub const ROM_BANK_SIZE: usize = 0x4000;
+pub const RAM_BANK_SIZE: usize = 0x2000;
 
 #[derive(Debug)]
 pub enum MBCType {
@@ -31,6 +33,7 @@ pub struct CartInfo {
 	pub cgb: bool,
 	pub mbc_type: MBCType,
 	pub battery: bool,
+	pub rtc: bool,
 	pub rom_size: usize,
 	pub ram_size: usize,
 }
@@ -59,7 +62,7 @@ pub trait MemoryBankController {
 	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, address: u16) -> u8;
 
 	fn write_byte_rom(&mut self, address: u16, value: u8);
-	fn write_byte_ram(&self, ram: &mut Box<[u8]>, ram_size: usize, adress: u16, value: u8);
+	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, adress: u16, value: u8);
 
 	fn rom_bank(&self) -> usize;
 	fn ram_bank(&self) -> usize;
@@ -76,10 +79,11 @@ impl CartInfo {
 		}
 
 		let info = CartInfo {
-			title: String::from(""),	//TODO
+			title: String::from(""),	//TODO: Cart title
 			sgb: rom[0x0146] == 0x03,
 			cgb: rom[0x0143] & 0x80 == 0x80,
 			battery: CartInfo::has_battery(rom[0x0147]),
+			rtc: CartInfo::has_rtc(rom[0x0147]),
 			mbc_type: mbc_type,
 			rom_size: rom_size,
 			ram_size: ram_size,
@@ -102,6 +106,13 @@ impl CartInfo {
 			0x22 => true,
 			0xFF => true,
 			_ => false,
+		}
+	}
+
+	fn has_rtc(cart_type: u8) -> bool {
+		match cart_type {
+			0x0F | 0x10 => true,
+			_ => false
 		}
 	}
 
@@ -173,6 +184,7 @@ impl VirtualCartridge {
 		let mbc: Result<Box<MemoryBankController>, & 'static str> = match cart_info.mbc_type {
 			MBCType::NONE => Ok(Box::new(NoMBC::new())),
 			MBCType::MBC1 => Ok(Box::new(MBC1::new())),
+			MBCType::MBC3 => Ok(Box::new(MBC3::new(cart_info.rtc))),
 			_ => {
 				Err("Unimplemented MBC")	//TODO: more helpful error message
 			},

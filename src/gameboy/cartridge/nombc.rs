@@ -38,7 +38,7 @@ impl MemoryBankController for NoMBC {
 		//This isn't a real mbc, so this doesn't do anything
 	}
 
-	fn write_byte_ram(&self, ram: &mut Box<[u8]>, ram_size: usize, address: u16, value: u8) {
+	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, address: u16, value: u8) {
 		let address: usize = address as usize;
 		if address < ram_size {
 			ram[address] = value;
