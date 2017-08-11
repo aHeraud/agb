@@ -174,6 +174,7 @@ impl Gameboy {
 		self.oam_dma_active = false;
 	}
 
+	///Called every 4 cycles
 	fn emulate_hardware(&mut self) {
 		if self.oam_dma_active {
 			self.service_oam_dma();
@@ -193,6 +194,8 @@ impl Gameboy {
 			self.request_interrupt(Interrupt::LcdStat);
 		}
 		self.ppu.clear_interrupts();
+
+		self.cpu.cycle_counter += 1;
 	}
 
 	fn request_interrupt(&mut self, req_int: Interrupt) {

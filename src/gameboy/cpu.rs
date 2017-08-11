@@ -33,6 +33,7 @@ pub struct CPU {
 	pub hram: [u8; HRAM_SIZE],
 	pub ier: u8,
 	pub double_speed_mode: bool,
+	pub cycle_counter: usize,
 }
 
 impl CPU {
@@ -46,6 +47,7 @@ impl CPU {
 			halt: false,
 			hram: [0; HRAM_SIZE],
 			double_speed_mode: false,
+			cycle_counter: 0
 		}
 	}
 
