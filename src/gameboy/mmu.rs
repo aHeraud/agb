@@ -43,6 +43,7 @@ impl MmuHelpers for Gameboy {
 	fn write_byte_io(&mut self, address: u16, value: u8) {
 		match address {
 			0xFF00 => self.joypad.write_joyp(value),
+			0xFF04 => self.timer.reset_div(),
 			0xFF46 => self.start_oam_dma(value),
 			0xFF01...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
 			_ => panic!("gbc::write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),

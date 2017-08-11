@@ -41,6 +41,16 @@ impl Timer {
 		self.int_requested = false;
 	}
 
+	///Writing to ff04 resets divider to 0
+	pub fn reset_div(&mut self) {
+		self.div = 0;
+	}
+
+	///Inspect the value of the internal div register
+	pub fn get_div(&self) -> u16 {
+		self.div
+	}
+
 	///Called every M-Cycle (4 clock cycles)
 	pub fn emulate_hardware(&mut self, io: &mut [u8]) {
 		//Read back registers
@@ -48,10 +58,6 @@ impl Timer {
 		self.tma = io[0x06];
 		self.tac = io[0x07] & 0x07;
 
-		if io[0x04] != (self.div >> 8) as u8 {
-			//Reset DIV on write
-			self.div = 0;
-		}
 		self.div = wrapping_add(self.div, 4);
 
 		let freq = FREQ[(self.tac & 3) as usize];
