@@ -1,7 +1,7 @@
 use std::vec::Vec;
 
 use gameboy::Gameboy;
-use gameboy::cpu::{ Registers, Register, RegisterPair };
+use gameboy::cpu::registers::{ Registers, Register, RegisterPair };
 use gameboy::mmu::Mmu;
 use gameboy::assembly;
 use gameboy::ppu::Bitmap;

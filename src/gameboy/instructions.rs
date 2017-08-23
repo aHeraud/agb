@@ -2,8 +2,8 @@ use super::Gameboy;
 use super::Register;
 use gameboy::mmu::Mmu;
 use gameboy::cpu;
-use gameboy::cpu::{ZERO_FLAG, CARRY_FLAG};
-use gameboy::cpu::RegisterPair;
+use gameboy::cpu::{ZERO_FLAG_MASK, CARRY_FLAG_MASK};
+use gameboy::cpu::registers::RegisterPair;
 use gameboy::util::{wrapping_add, wrapping_sub};
 
 
@@ -28,8 +28,9 @@ fn map_register(reg: u8) -> Register {
 
 impl Gameboy {
 	pub fn execute(&mut self) {
+		//use gameboy::debugger::DebuggerInterface;
 		//self.interrupt_service_routine();  //called seperately to let debugger see calls to interrupt vectors
-
+		//println!("{}", self.trace());
 		if  self.cpu.halt {
 			self.emulate_hardware();
 		}
@@ -268,10 +269,10 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		let branch: bool = match conditional {
-			Conditional::Z => self.cpu.registers.f & ZERO_FLAG == ZERO_FLAG,
-			Conditional::NZ => self.cpu.registers.f & ZERO_FLAG == 0,
-			Conditional::C => self.cpu.registers.f & CARRY_FLAG == CARRY_FLAG,
-			Conditional::NC => self.cpu.registers.f & CARRY_FLAG == 0,
+			Conditional::Z => self.cpu.registers.f & ZERO_FLAG_MASK == ZERO_FLAG_MASK,
+			Conditional::NZ => self.cpu.registers.f & ZERO_FLAG_MASK == 0,
+			Conditional::C => self.cpu.registers.f & CARRY_FLAG_MASK == CARRY_FLAG_MASK,
+			Conditional::NC => self.cpu.registers.f & CARRY_FLAG_MASK == 0,
 		};
 
 		if branch {
@@ -296,10 +297,10 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		let branch: bool = match conditional {
-			Conditional::Z => self.cpu.registers.f & ZERO_FLAG == ZERO_FLAG,
-			Conditional::NZ => self.cpu.registers.f & ZERO_FLAG == 0,
-			Conditional::C => self.cpu.registers.f & CARRY_FLAG == CARRY_FLAG,
-			Conditional::NC => self.cpu.registers.f & CARRY_FLAG == 0,
+			Conditional::Z => self.cpu.registers.f & ZERO_FLAG_MASK == ZERO_FLAG_MASK,
+			Conditional::NZ => self.cpu.registers.f & ZERO_FLAG_MASK == 0,
+			Conditional::C => self.cpu.registers.f & CARRY_FLAG_MASK == CARRY_FLAG_MASK,
+			Conditional::NC => self.cpu.registers.f & CARRY_FLAG_MASK == 0,
 		};
 
 		if branch {
@@ -514,7 +515,7 @@ impl Gameboy {
 	///Same as RLC A, except it only consumes 1 m-cycle, and resets the zero flag
 	fn rlca(&mut self) {
 		self.cpu.registers.a = cpu::alu::rlc(self.cpu.registers.a, &mut self.cpu.registers.f);
-		self.cpu.registers.f &= !cpu::ZERO_FLAG;
+		self.cpu.registers.f &= !cpu::ZERO_FLAG_MASK;
 	}
 
 	///0x0A: LD A, (BC)
@@ -532,7 +533,7 @@ impl Gameboy {
 	///A shorter RRC A that only sets the cy flag
 	fn rrca(&mut self) {
 		self.cpu.registers.a = cpu::alu::rrc(self.cpu.registers.a, &mut self.cpu.registers.f);
-		self.cpu.registers.f &= cpu::CARRY_FLAG;
+		self.cpu.registers.f &= cpu::CARRY_FLAG_MASK;
 	}
 
 	///0x10: Stop
@@ -572,7 +573,7 @@ impl Gameboy {
 	///A shorter RL A that only sets the cy flag
 	fn rla(&mut self) {
 		self.cpu.registers.a = cpu::alu::rl(self.cpu.registers.a, &mut self.cpu.registers.f);
-		self.cpu.registers.f &= cpu::CARRY_FLAG;
+		self.cpu.registers.f &= cpu::CARRY_FLAG_MASK;
 	}
 
 	///0x18: JR r8
@@ -608,7 +609,7 @@ impl Gameboy {
 		let mut a: u8 = self.cpu.registers.a;
 		let mut f: u8 = self.cpu.registers.f;
 		a = cpu::alu::rr(a, &mut f);
-		f &= cpu::CARRY_FLAG;
+		f &= cpu::CARRY_FLAG_MASK;
 
 		self.cpu.registers.a = a;
 		self.cpu.registers.f = f;
@@ -623,7 +624,7 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		//1 cycle if conditional taken
-		if self.cpu.registers.f & cpu::ZERO_FLAG == 0 {
+		if self.cpu.registers.f & cpu::ZERO_FLAG_MASK == 0 {
 			//zero flag not set, add/subtract offset from pc
 			self.emulate_hardware();
 			self.jr(offset);
@@ -683,14 +684,14 @@ impl Gameboy {
 		}
 
 		//reset zero flag and half carry flag
-		self.cpu.registers.f &= !(cpu::HALF_CARRY_FLAG | cpu::ZERO_FLAG);
+		self.cpu.registers.f &= !(cpu::HALF_CARRY_FLAG_MASK | cpu::ZERO_FLAG_MASK);
 
 		//set zero flag
-		self.cpu.registers.f |= !(((a & 0x007F) + 0x007F) | a) as u8 & cpu::ZERO_FLAG;
+		self.cpu.registers.f |= !(((a & 0x007F) + 0x007F) | a) as u8 & cpu::ZERO_FLAG_MASK;
 
 
 		//set carry flag
-		self.cpu.registers.f |= ((a >> 4) as u8) & cpu::CARRY_FLAG;
+		self.cpu.registers.f |= ((a >> 4) as u8) & cpu::CARRY_FLAG_MASK;
 
 		//set a
 		a &= 0xFF;
@@ -707,7 +708,7 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		//1 cycle if branch taken
-		if self.cpu.registers.f & cpu::ZERO_FLAG == cpu::ZERO_FLAG {
+		if self.cpu.registers.f & cpu::ZERO_FLAG_MASK == cpu::ZERO_FLAG_MASK {
 			self.jr(offset);
 
 			//1 M-Cycle internal delay when branch taken
@@ -721,7 +722,7 @@ impl Gameboy {
 	///TODO: move to cpu?
 	fn cpl(&mut self) {
 		self.cpu.registers.a = self.cpu.registers.a ^ 0xFF;
-		self.cpu.registers.f |= cpu::SUBTRACTION_FLAG | cpu::HALF_CARRY_FLAG;
+		self.cpu.registers.f |= cpu::SUBTRACTION_FLAG_MASK | cpu::HALF_CARRY_FLAG_MASK;
 	}
 
 	///0x30: JR NC, i8
@@ -732,7 +733,7 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		//jump if carry flag is not set
-		if (self.cpu.registers.f & cpu::CARRY_FLAG) == 0 {
+		if (self.cpu.registers.f & cpu::CARRY_FLAG_MASK) == 0 {
 			//internal delay since branch taken
 			self.emulate_hardware();
 
@@ -788,8 +789,8 @@ impl Gameboy {
 	///Preserves Zero flag, resets Subtraction and Half-carry flags, and sets half-carry
 	///TODO: move to cpu?
 	fn scf(&mut self) {
-		self.cpu.registers.f &= cpu::ZERO_FLAG;
-		self.cpu.registers.f |= cpu::CARRY_FLAG;
+		self.cpu.registers.f &= cpu::ZERO_FLAG_MASK;
+		self.cpu.registers.f |= cpu::CARRY_FLAG_MASK;
 	}
 
 	///0x38: JR C, r8
@@ -801,7 +802,7 @@ impl Gameboy {
 		self.emulate_hardware();
 
 		//1 cycle if branch taken
-		if self.cpu.registers.f & cpu::CARRY_FLAG == cpu::CARRY_FLAG {
+		if self.cpu.registers.f & cpu::CARRY_FLAG_MASK == cpu::CARRY_FLAG_MASK {
 			self.jr(offset);
 
 			//1 M-Cycle internal delay when branch taken
@@ -824,9 +825,9 @@ impl Gameboy {
 	///Length: 1 byte
 	///Inverts the carry flag, resets SF and HC, and preserves ZF
 	fn ccf(&mut self) {
-		let zf = self.cpu.registers.f & cpu::ZERO_FLAG;
-		let cf = self.cpu.registers.f & cpu::CARRY_FLAG;
-		self.cpu.registers.f = zf | (!cf & cpu::CARRY_FLAG)
+		let zf = self.cpu.registers.f & cpu::ZERO_FLAG_MASK;
+		let cf = self.cpu.registers.f & cpu::CARRY_FLAG_MASK;
+		self.cpu.registers.f = zf | (!cf & cpu::CARRY_FLAG_MASK)
 	}
 
 	///[0x40...0x75] U [0x77...0x7F]: LD r1, r2
@@ -921,7 +922,7 @@ impl Gameboy {
 		//1 cycle to check conditional
 		self.emulate_hardware();
 
-		if (self.cpu.registers.f & cpu::ZERO_FLAG) == 0 {
+		if (self.cpu.registers.f & cpu::ZERO_FLAG_MASK) == 0 {
 			self._ret();
 		}
 	}
@@ -966,7 +967,7 @@ impl Gameboy {
 		//1 cycle to check conditional
 		self.emulate_hardware();
 
-		if (self.cpu.registers.f & cpu::ZERO_FLAG) == cpu::ZERO_FLAG {
+		if (self.cpu.registers.f & cpu::ZERO_FLAG_MASK) == cpu::ZERO_FLAG_MASK {
 			self._ret();
 		}
 	}
@@ -1083,7 +1084,7 @@ impl Gameboy {
 		//1 cycle to check conditional
 		self.emulate_hardware();
 
-		if (self.cpu.registers.f & cpu::CARRY_FLAG) == 0 {
+		if (self.cpu.registers.f & cpu::CARRY_FLAG_MASK) == 0 {
 			self._ret();
 		}
 	}
@@ -1104,7 +1105,7 @@ impl Gameboy {
 		//1 cycle to check conditional
 		self.emulate_hardware();
 
-		if(self.cpu.registers.f & cpu::CARRY_FLAG) == cpu::CARRY_FLAG  {
+		if(self.cpu.registers.f & cpu::CARRY_FLAG_MASK) == cpu::CARRY_FLAG_MASK  {
 			self._ret();
 		}
 	}

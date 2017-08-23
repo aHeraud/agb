@@ -10,7 +10,8 @@ mod assembly;
 mod util;
 
 use gameboy::mmu::Mmu;
-use gameboy::cpu::{Register, CPU};
+use gameboy::cpu::CPU;
+use gameboy::cpu::registers::Register;
 use gameboy::ppu::PPU;
 use gameboy::ppu::dmg_ppu::DmgPpu;
 //use gameboy::ppu::cgb_ppu::CgbPpu;
