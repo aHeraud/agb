@@ -226,9 +226,7 @@ impl Gameboy {
 	///4. Serial
 	///5. Joypad
 	fn interrupt_service_routine(&mut self) {
-		if self.cpu.ime {
-			//interrupts are enabled
-			let interrupt_flag: u8 = self.io[0x0F];
+		let interrupt_flag: u8 = self.io[0x0F];
 			let interrupt_enable: u8 = self.cpu.ier;
 
 			//only service requests where it's requested in IF and enabled in IE
@@ -258,49 +256,55 @@ impl Gameboy {
 			}
 
 			if interrupt.is_some() {
-				//Nested interrupts are disabled unless the interrupt handler re enables them
-				self.cpu.next_ime_state = false;
+				if self.cpu.ime {
+					//Interrupts are enabled, so service this interrupt
+					//Nested interrupts are disabled unless the interrupt handler re enables them
+					self.cpu.next_ime_state = false;
 
-				//2 cycle delay
-				self.emulate_hardware();
-				self.emulate_hardware();
+					//2 cycle delay
+					self.emulate_hardware();
+					self.emulate_hardware();
 
-				//wake the processor
-				self.cpu.halt = false;
+					//wake the processor
+					self.cpu.halt = false;
 
-				//Service the interrupt
-				let new_pc: u16 = match interrupt.unwrap() {
-					Interrupt::VBlank => VBLANK_ADDR,
-					Interrupt::LcdStat => LCDSTAT_ADDR,
-					Interrupt::Timer => TIMER_ADDR,
-					Interrupt::Serial => SERIAL_ADDR,
-					Interrupt::Joypad => JOYPAD_ADDR,
-				};
+					//Service the interrupt
+					let new_pc: u16 = match interrupt.unwrap() {
+						Interrupt::VBlank => VBLANK_ADDR,
+						Interrupt::LcdStat => LCDSTAT_ADDR,
+						Interrupt::Timer => TIMER_ADDR,
+						Interrupt::Serial => SERIAL_ADDR,
+						Interrupt::Joypad => JOYPAD_ADDR,
+					};
 
-				let old_pc = self.cpu.registers.pc;
-				let sp: u16 = self.cpu.registers.sp;
+					let old_pc = self.cpu.registers.pc;
+					let sp: u16 = self.cpu.registers.sp;
 
-				//TODO: if there is an oam dma transfer and sp doesn't point
-				//to hram, can this be put on the stack?
+					//TODO: if there is an oam dma transfer and sp doesn't point
+					//to hram, can this be put on the stack?
 
-				//push pc onto stack
-				let high: u8 = (old_pc >> 8) as u8;
-				self.write_byte(sp - 1, high);
-				self.emulate_hardware();
+					//push pc onto stack
+					let high: u8 = (old_pc >> 8) as u8;
+					self.write_byte_cpu(sp - 1, high);
+					self.emulate_hardware();
 
-				//push low byte of pc onto stack
-				let low: u8 = (old_pc & 0xFF) as u8;
-				self.write_byte(sp - 2, low);
-				self.emulate_hardware();
+					//push low byte of pc onto stack
+					let low: u8 = (old_pc & 0xFF) as u8;
+					self.write_byte_cpu(sp - 2, low);
+					self.emulate_hardware();
 
-				//sub 2 from sp because we pushed a word onto the stack
-				self.cpu.registers.sp -= 2;
+					//sub 2 from sp because we pushed a word onto the stack
+					self.cpu.registers.sp -= 2;
 
-				//jump to interrupt handler
-				self.cpu.registers.pc = new_pc;
-				self.emulate_hardware();	//1 cycle delay when setting pc
+					//jump to interrupt handler
+					self.cpu.registers.pc = new_pc;
+					self.emulate_hardware();	//1 cycle delay when setting pc
+				}
+				else {
+					//Interrupts are disabled, so just wake the cpu
+					self.cpu.halt = false;
+				}
 			}
-		}
 	}
 
 	/*

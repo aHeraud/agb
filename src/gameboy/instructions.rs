@@ -240,21 +240,12 @@ impl Gameboy {
 	}
 
 	fn _ret(&mut self) {
-		//read low byte of return address from stack
-		let sp: u16 = self.cpu.registers.sp;
-		let addr_low: u8 = self.read_byte_cpu(sp);
-		self.emulate_hardware();
 
-		//read high byte of return address from stack
-		let addr_high: u8 = self.read_byte_cpu(sp + 1);
-		self.emulate_hardware();
+		let addr = self.pop();
+		self.cpu.registers.pc = addr;
 
-		//where does this delay actually go?
+		//internal delay
 		self.emulate_hardware();
-
-		//add 2 to sp, set pc
-		self.cpu.registers.sp += 2;
-		self.cpu.registers.pc = ((addr_high as u16) << 8) | addr_low as u16;
 	}
 
 	fn jp_conditional(&mut self, conditional: Conditional) {

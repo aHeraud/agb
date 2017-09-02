@@ -445,6 +445,9 @@ impl DebuggerInterface for Gameboy {
 		let hl = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		let sp = self.cpu.registers.sp;
 		let pc = self.cpu.registers.pc;
+		let stat: u8 = self.read_byte(0xFF41);
+		let stack: u16 = ((self.read_byte(self.cpu.registers.sp + 1) as u16) << 8) | (self.read_byte(self.cpu.registers.sp) as u16);
+		let instructions = assembly::get_assembly(&(self.read_range(self.cpu.registers.pc, self.cpu.registers.pc + 3).unwrap()));
 
 		let zf = if f & 0x80 != 0 { "Z" } else { "-" };
 		let sf = if f & 0x40 != 0 { "N" } else { "-" };
@@ -452,6 +455,6 @@ impl DebuggerInterface for Gameboy {
 		let cf = if f & 0x10 != 0 { "C" } else { "-" };
 		let flags = format!("{}{}{}{}", zf, sf, hc, cf);
 
-		format!("A:{:02x} F:{} BC:{:04x} DE:{:04x} HL:{:04x} SP:{:04x} PC:{:04x} (cy: {}) DIV:{:04x}", a, flags, bc, de, hl, sp, pc, self.cpu.cycle_counter * 4, self.timer.get_div())
+		format!("A:{:02x} F:{} BC:{:04x} DE:{:04x} HL:{:04x} SP:{:04x} PC:{:04x} (cy: {}) DIV:{:04x} STAT:{:04x} Stack:{:04x}, Instruction: {}", a, flags, bc, de, hl, sp, pc, self.cpu.cycle_counter * 4, self.timer.get_div(), stat, stack, instructions[0])
 	}
 }
