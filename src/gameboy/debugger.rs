@@ -396,7 +396,7 @@ impl DebuggerInterface for Gameboy {
 		else {
 			let size = (address_end - address_start + 1) as usize;
 			let mut bytes = Vec::with_capacity(size);
-			for address in address_start...address_end {
+			for address in address_start..=address_end {
 				bytes.push(self.read_byte(address));
 			}
 			Ok(bytes.into_boxed_slice())
