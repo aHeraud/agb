@@ -70,13 +70,13 @@ pub trait MemoryBankController {
 
 impl CartInfo {
 	pub fn new(rom: &Box<[u8]>) -> Result<CartInfo, & 'static str> {
-		let mbc_type: MBCType = try!(CartInfo::get_type(rom[0x0147]));
-		let rom_size: usize = try!(CartInfo::get_rom_size(rom[0x0148]));
-		let ram_size: usize = try!(CartInfo::get_ram_size(rom[0x0149]));
-
 		if rom.len() < 0x150 {
 			return Err("Rom is too small to contain a rom header (rom is smaller than 0x150 bytes)");
 		}
+
+		let mbc_type: MBCType = try!(CartInfo::get_type(rom[0x0147]));
+		let rom_size: usize = try!(CartInfo::get_rom_size(rom[0x0148]));
+		let ram_size: usize = try!(CartInfo::get_ram_size(rom[0x0149]));
 
 		let info = CartInfo {
 			title: String::from(""),	//TODO: Cart title
