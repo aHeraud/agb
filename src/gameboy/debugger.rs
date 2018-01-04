@@ -425,7 +425,7 @@ impl DebuggerInterface for Gameboy {
 		self.ppu.reset();
 		self.oam_dma_active = false;
 		self.oam_dma_start_address = 0;
-		self.oam_dma_current_offset = 0;
+		self.oam_dma_current_cycle = 0;
 	}
 
 	fn dump_tiles(&self) -> Bitmap<u32> {

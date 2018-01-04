@@ -62,7 +62,7 @@ pub struct Gameboy {
 	pub debugger: Debugger,
 	pub oam_dma_active: bool,
 	pub oam_dma_start_address: u16,
-	pub oam_dma_current_offset: u16,
+	pub oam_dma_current_cycle: u16,
 }
 
 #[allow(dead_code)]
@@ -120,7 +120,7 @@ impl Gameboy {
 			debugger: Debugger::new(),
 			oam_dma_active: false,
 			oam_dma_start_address: 0,
-			oam_dma_current_offset: 0,
+			oam_dma_current_cycle: 0,
 		};
 		Ok(gameboy)
 	}
@@ -159,20 +159,28 @@ impl Gameboy {
 	fn start_oam_dma(&mut self, value: u8) {
 		self.oam_dma_active = true;
 		self.oam_dma_start_address = (value as u16) << 8;
-		self.oam_dma_current_offset = 0;
+		self.oam_dma_current_cycle = 0;
 	}
 
 	fn service_oam_dma(&mut self) {
-		//If oam dma is running, copy some data
-		//oam dma supposedly takes 671 cycles
-		//Copies 60 bytes
-		//TODO: realistic oam transfers
+		//according to https://github.com/Gekkio/mooneye-gb/blob/master/docs/accuracy.markdown
+		//oam dma is 162 m-cycles, with 2 m-cycles for startup/teardown
+		//since oam is 160 bytes (0x100), this means it transfers 1 byte/m-cycle.
 
-		for i in 0..100 {
-			let value: u8 = self.read_byte(self.oam_dma_start_address + i);
-			self.ppu.write_byte_oam(&self.io, 0xFE00 + i, value);
+		if self.oam_dma_current_cycle > 0 && self.oam_dma_current_cycle < 161 {
+			let offset = self.oam_dma_current_cycle - 1;
+			let value: u8 = self.read_byte(self.oam_dma_start_address + offset);
+			self.ppu.write_byte_oam(&self.io, 0xFE00 + offset, value);
 		}
-		self.oam_dma_active = false;
+	}
+
+	fn update_oam_dma_status(&mut self) {
+		if self.oam_dma_current_cycle < 161 {
+			self.oam_dma_current_cycle += 1;
+		}
+		else {
+			self.oam_dma_active = false;
+		}
 	}
 
 	///Called every 4 cycles
@@ -196,6 +204,9 @@ impl Gameboy {
 		}
 		self.ppu.clear_interrupts();
 
+		if self.oam_dma_active {
+			self.update_oam_dma_status();
+		}
 		self.cpu.cycle_counter += 1;
 	}
 
