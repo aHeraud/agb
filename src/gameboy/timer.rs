@@ -20,6 +20,7 @@ pub struct Timer {
 	tima: u16,
 	tma: u8,
 	tac: u8,
+	tima_overflow: bool
 }
 
 impl Timer {
@@ -30,6 +31,7 @@ impl Timer {
 			tma: 0,
 			tac: 0,
 			int_requested: false,
+			tima_overflow: false
 		}
 	}
 
@@ -39,6 +41,7 @@ impl Timer {
 		self.tma = 0;
 		self.tac = 0;
 		self.int_requested = false;
+		self.tima_overflow = false;
 	}
 
 	///Writing to ff04 resets divider to 0
@@ -62,16 +65,24 @@ impl Timer {
 
 		let freq = FREQ[(self.tac & 3) as usize];
 
+		if self.tima_overflow {
+			self.tima_overflow = false;
+			//Tima overflow, load TMA
+			self.tima = self.tma as u16;
+			//Request Timer Interrupt
+			self.int_requested = true;
+		}
+
 		//Incremented on rising edge
 		if (self.tac & 4 == 4) && (self.div % freq == 0) {
 			//inc tima
 			self.tima += 1;
 
 			if self.tima > 0xFF {
-				//Tima overflow, load TMA
-				self.tima = self.tma as u16;
-				//Request Timer Interrupt
-				self.int_requested = true;
+				//when tima overflows there is a 1 m-cycle delay before
+				//it is reloaded and the interrupt is fired
+				self.tima = 0;
+				self.tima_overflow = true;
 			}
 		}
 
