@@ -1,0 +1,9 @@
+[package]
+name = "agb-sdl2"
+version = "0.1.0"
+authors = ["Achille <achille@heraud.xyz>"]
+
+[dependencies]
+agb-core = { path = ".." }
+sdl2 = "0.29.1"
+image = "0.10.4"

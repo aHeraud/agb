@@ -11,3 +11,9 @@ Cargo.lock
 
 #Don't include test screenshots
 /tests/results/*
+
+#Don't include any roms
+/agb-sdl2/roms/
+
+#Don't include sdl2 dll
+/agb-sdl2/SDL2.dll

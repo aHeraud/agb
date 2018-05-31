@@ -1,4 +1,4 @@
-extern crate rustboy_core;
+extern crate agb_core;
 extern crate image;
 
 use std::fs::{read_dir, create_dir, File};
@@ -28,7 +28,7 @@ fn run_test_rom(path: String) -> Result<Vec<u32>,String> {
 		return Err(format!("Failed to open file {}.", path));
 	}
 
-	let gameboy = rustboy_core::init(rom.unwrap(), None);
+	let gameboy = agb_core::init(rom.unwrap(), None);
 	if let Err(ref msg) = gameboy {
 		return Err(format!("{}.", msg));
 	}
@@ -58,7 +58,7 @@ fn save_screenshot(path: String, raw: Vec<u32>) -> Result<(), std::io::Error> {
 		buffer.push((val & 0xFF) as u8);
 	}
 	let encoder = image::png::PNGEncoder::new(file);
-	encoder.encode(buffer.as_slice(), rustboy_core::WIDTH as u32, rustboy_core::HEIGHT as u32, image::ColorType::RGBA(8))
+	encoder.encode(buffer.as_slice(), agb_core::WIDTH as u32, agb_core::HEIGHT as u32, image::ColorType::RGBA(8))
 }
 
 #[test]
