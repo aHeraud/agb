@@ -1,0 +1,7 @@
+#Don't include any roms
+/roms/
+
+#Don't include sdl2 dll
+SDL2.dll
+
+/target/
