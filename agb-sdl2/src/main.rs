@@ -3,6 +3,7 @@
 extern crate agb_core;
 extern crate sdl2;
 extern crate image;
+extern crate clap;
 
 mod debugger;
 
@@ -28,53 +29,43 @@ use sdl2::rect::Rect;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
+use clap::{Arg, App};
+
 const DEFAULT_SCALE: usize = 2;
 
 fn main() {
 	/* Create and initialize gameboy */
 
 	//Parse command line arguments
-	let args: Vec<String> = std::env::args().collect();
-	let mut rom_path: Option<String> = None;
-	let mut ram_path: Option<String> = None;
-	let mut start_paused: bool = false;
+	let matches = App::new("agb")
+		.version("0.1")
+		.author("Achille Heraud <achille@heraud.xyz>")
+		.about("A GameBoy Emulator")
+		.arg(Arg::with_name("rom")
+			.long("rom")
+			.takes_value(true)
+			.value_name("FILE")
+			.required(true))
+		.arg(Arg::with_name("ram")
+			.long("ram")
+			.takes_value(true)
+			.value_name("FILE")
+			.required(false))
+		.arg(Arg::with_name("paused")
+			.long("pause")
+			.short("p")
+			.required(false))
+		.get_matches();
 
-	for index in 0..args.len() {
-		let ref param: String = args[index];
-		match param.as_str() {
-			"-rom" => {
-				if index + 1 < args.len() {
-					//The next argument is the path to the rom file
-					rom_path = Some(args[index + 1].clone());
-				}
-			},
-			"-ram" => {
-				if index + 1 < args.len() {
-					//The next argument is the path to the ram file
-					ram_path = Some(args[index + 1].clone());
-				}
-			},
-			"-pause" => start_paused = true,
-			_ => {},
-		};
+	let rom = read_file(matches.value_of("rom").unwrap()).expect("Could not open rom file.");
+	let ram: Option<Box<[u8]>> = if let Some(ram_path) = matches.value_of("ram") {
+		Some(read_file(ram_path).expect("failed to read ram file"))
 	}
-
-	if rom_path.is_none() {
-		println!("Err: Pass the path to a rom file with -rom PATH/TO/ROM");
-		return;
-	}
-
-	let rom = read_file(rom_path.unwrap()).expect("Could not open rom file.");
-	let ram: Option<Box<[u8]>> = match ram_path {
-		Some(path) => {
-			let ram_result = read_file(path);
-			match ram_result {
-				Ok(ram_contents) => Some(ram_contents),
-				Err(_) => None,
-			}
-		},
-		None => None,
+	else {
+		None
 	};
+
+	let start_paused: bool = matches.occurrences_of("paused") > 0;
 
 	let mut gameboy = agb_core::init(rom, ram).expect("Failed to initialize gameboy");
 	let paused: Rc<RefCell<bool>> = Rc::new(RefCell::new(start_paused));

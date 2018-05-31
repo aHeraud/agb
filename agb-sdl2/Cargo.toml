@@ -7,3 +7,4 @@ authors = ["Achille <achille@heraud.xyz>"]
 agb-core = { path = ".." }
 sdl2 = "0.29.1"
 image = "0.10.4"
+clap = "2.30.0"
