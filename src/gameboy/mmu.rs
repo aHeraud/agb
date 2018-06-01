@@ -66,30 +66,6 @@ pub trait Mmu {
 
 	fn banked_rom(&self) -> &[u8];
 	fn banked_rom_mut(&mut self) -> &mut[u8];
-
-	// fn ram(&self) -> &[u8];
-	// fn ram_mut(&mut self) -> &mut[u8];
-
-	// fn vram(&self) -> &[u8];
-	// fn vram_mut(&mut self) -> &mut[u8];
-
-	// fn wram(&self) -> &[u8];
-	// fn wram_mut(&mut self) -> &mut[u8];
-
-	// fn banked_wram(&self) -> &[u8];
-	// fn banked_wram_mut(&mut self) -> &mut[u8];
-
-	// fn oam(&self) -> &[u8];
-	// fn oam_mut(&mut self) -> &mut[u8];
-
-	// fn io(&self) -> &[u8];
-	// fn io_mut(&mut self) -> &mut [u8];
-
-	// fn hram(&self) -> &[u8];
-	// fn hram_mut(&mut self) -> &mut[u8];
-
-	// fn ier(&self) -> u8;
-	// fn ier_mut(&mut self) -> &mut u8;
 }
 
 impl Mmu for Gameboy {
@@ -180,69 +156,4 @@ impl Mmu for Gameboy {
 	fn banked_rom_mut(&mut self) -> &mut[u8] {
 		self.cart.banked_rom_mut()
 	}
-
-	// fn ram(&self) -> &[u8] {
-	// 	self.cart.ram()
-	// }
-	// fn ram_mut(&mut self) -> &mut[u8] {
-	// 	self.cart.ram_mut()
-	// }
-
-	// fn vram(&self) -> &[u8] {
-	// 	self.ppu.get_vram()
-	// }
-
-	// fn vram_mut(&mut self) -> &mut[u8] {
-	// 	self.ppu.get_vram_mut()
-	// }
-
-	// fn wram(&self) -> &[u8] {
-	// 	&self.wram[0..0x1000]
-	// }
-
-	// fn wram_mut(&mut self) -> &mut[u8] {
-	// 	&mut self.wram[0..0x1000]
-	// }
-
-	// fn banked_wram(&self) -> &[u8] {
-	// 	//TODO: wram banks on cgb
-	// 	&self.wram[0x1000..0x2000]
-	// }
-
-	// fn banked_wram_mut(&mut self) -> &mut[u8] {
-	// 	//TODO: wram banks on cgb
-	// 	&mut self.wram[0x1000..0x2000]
-	// }
-
-	// fn oam(&self) -> &[u8] {
-	// 	self.ppu.get_oam()
-	// }
-
-	// fn oam_mut(&mut self) -> &mut[u8] {
-	// 	self.ppu.get_oam_mut()
-	// }
-
-	// fn io(&self) -> &[u8] {
-	// 	&self.io
-	// }
-
-	// fn io_mut(&mut self) -> &mut [u8] {
-	// 	&mut self.io
-	// }
-
-	// fn hram(&self) -> &[u8] {
-	// 	&self.cpu.hram
-	// }
-
-	// fn hram_mut(&mut self) -> &mut[u8] {
-	// 	&mut self.cpu.hram
-	// }
-
-	// fn ier(&self) -> u8 {
-	// 	self.cpu.ier
-	// }
-
-	// fn ier_mut(&mut self) -> &mut u8 {
-	// 	&mut self.cpu.ier
-	// }
 }
