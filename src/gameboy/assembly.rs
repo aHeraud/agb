@@ -1,7 +1,7 @@
 use std::vec::Vec;
 use std::string::String;
 
-const INSTRUCTION_LENGTH: [usize; 256] = [
+pub const INSTRUCTION_LENGTH: [usize; 256] = [
 	1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1,
 	2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1,
 	2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,

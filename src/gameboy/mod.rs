@@ -6,7 +6,7 @@ pub mod instructions;
 pub mod timer;
 pub mod joypad;
 pub mod debugger;
-mod assembly;
+pub mod assembly;
 mod util;
 
 use gameboy::mmu::Mmu;
