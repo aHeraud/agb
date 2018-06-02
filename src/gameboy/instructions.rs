@@ -28,7 +28,7 @@ fn map_register(reg: u8) -> Register {
 
 impl Gameboy {
 	pub fn execute(&mut self) {
-		//use gameboy::debugger::DebuggerInterface;
+		use gameboy::debugger::DebuggerInterface;
 		//self.interrupt_service_routine();  //called seperately to let debugger see calls to interrupt vectors
 		//println!("{}", self.trace());
 		if  self.cpu.halt {
@@ -214,16 +214,16 @@ impl Gameboy {
 		let sp: u16 = self.cpu.registers.sp;
 
 		let high: u8 = (value >> 8) as u8;
-		self.write_byte_cpu(sp - 1, high);
+		self.write_byte_cpu(sp.wrapping_sub(1), high);
 		self.emulate_hardware();
 
 		//push low byte of pc onto stack
 		let low: u8 = (value & 0xFF) as u8;
-		self.write_byte_cpu(sp - 2, low);
+		self.write_byte_cpu(sp.wrapping_sub(2), low);
 		self.emulate_hardware();
 
 		//sub 2 from sp because we pushed a word onto the stack
-		self.cpu.registers.sp -= 2;
+		self.cpu.registers.sp = self.cpu.registers.sp.wrapping_sub(2);
 	}
 
 	///Pop a byte off of the stack
@@ -274,7 +274,6 @@ impl Gameboy {
 			self.cpu.registers.pc = ((addr_high as u16) << 8) | (addr_low as u16);
 		}
 	}
-
 
 	///6 M-Cycles if branch take, else 3 M-Cycles
 	///Length: 3 bytes
