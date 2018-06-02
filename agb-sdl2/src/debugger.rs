@@ -2,6 +2,7 @@ use std::str::SplitWhitespace;
 use std::fs::File;
 
 use agb_core::gameboy::Gameboy;
+use agb_core::gameboy::assembly;
 use agb_core::gameboy::debugger::{Breakpoint, DebuggerInterface, AccessType};
 use super::{parse_u16, parse_u8, parse_usize};
 
@@ -258,26 +259,20 @@ pub fn dump_bg(command: &mut SplitWhitespace, gameboy: &mut Gameboy) {
 }
 
 pub fn assembly(gameboy: &mut Gameboy) {
-	use std::cmp::{max,min};
+	use std::cmp::min;
 
 	let pc = gameboy.get_registers().pc;
-	let start:usize = min((pc as usize) - 5, (pc as usize));
+	let start:usize = pc as usize;
 	let end = min(start + 5, 0xFFFF);
 	let data = gameboy.read_range(start as u16, end as u16).unwrap(); //largest opcode is 3 bytes
-	let before = gameboy.get_assembly(&data);
-
-	let start = pc as usize;
-	let end = max(start + 5, start);
-	let data = gameboy.read_range(start as u16, end as u16).unwrap();
 	let after = gameboy.get_assembly(&data);
 
-	for op in before {
-		println!("{}", op);
-	}
+	let mut offset: usize = 0;
 	for (line,op) in after.iter().enumerate() {
 		match line {
-			0 => { println!("{} <---", op); },
-			_ => { println!("{}", op); },
+			0 => { println!("{:04X}: {} <---", (offset + start) as u16, op); },
+			_ => { println!("{:04X}: {}", (offset + start) as u16, op); },
 		};
+		offset += assembly::INSTRUCTION_LENGTH[data[offset] as usize];
 	}
 }
