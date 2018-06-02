@@ -111,7 +111,7 @@ fn main() {
 	let width: u32 = (agb_core::WIDTH * DEFAULT_SCALE) as u32;
 	let height: u32 = (agb_core::HEIGHT * DEFAULT_SCALE) as u32;
 
-	let window = video_subsystem.window("rustboy-color", width, height)
+	let window = video_subsystem.window("agb", width, height)
 		.position_centered()
 		.opengl()
 		.build()
