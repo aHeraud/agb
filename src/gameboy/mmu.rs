@@ -33,8 +33,13 @@ impl MmuHelpers for Gameboy {
 
 	fn read_byte_io(&self, address: u16) -> u8 {
 		use gameboy::ppu::PpuIoRegister;
+		use gameboy::timer::TimerRegister;
+
 		if let Some(register) = PpuIoRegister::map_address(address) {
 			self.ppu.read_io(register)
+		}
+		else if let Some(register) = TimerRegister::map_address(address) {
+			self.timer.read_io(register)
 		}
 		else {
 			match address {
@@ -48,16 +53,20 @@ impl MmuHelpers for Gameboy {
 
 	fn write_byte_io(&mut self, address: u16, value: u8) {
 		use gameboy::ppu::PpuIoRegister;
+		use gameboy::timer::TimerRegister;
+
 		if let Some(register) = PpuIoRegister::map_address(address) {
 			self.ppu.write_io(register, value);
+		}
+		else if let Some(register) = TimerRegister::map_address(address) {
+			self.timer.write_io(register, value);
 		}
 		else {
 			match address {
 				0xFF00 => self.joypad.write_joyp(value),
-				0xFF04 => self.timer.reset_div(),
 				0xFF0F => self.cpu.interrupt_flag.write(value),
 				0xFF46 => self.start_oam_dma(value),
-				0xFF01...0xFF03 | 0xFF05...0xFF0E | 0xFF10...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
+				0xFF01...0xFF0E | 0xFF10...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
 				_ => panic!("write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
 			};
 		}

@@ -174,7 +174,7 @@ impl Gameboy {
 		}
 
 		let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
-		self.timer.emulate_hardware(&mut self.io, &mut interrupt_line);
+		self.timer.emulate_hardware(&mut interrupt_line);
 		self.ppu.emulate_hardware(&mut interrupt_line);
 
 		if self.oam_dma_active {
