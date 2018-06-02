@@ -65,9 +65,10 @@ impl InterruptFlag {
 		self.value &= !int.mask();
 	}
 
-	//TODO: are the high bits always read as 1 or are they always read as 0
+	/// Read from the IF register.
+	/// High 3 bits always read as 1.
 	pub fn read(&self) -> u8 {
-		self.value & 0x1F
+		self.value | 0xE0
 	}
 
 	pub fn write(&mut self, value: u8) {
@@ -91,9 +92,10 @@ impl InterruptEnable {
 		self.value = 0;
 	}
 
-	//TODO: are the high bits always read as 1 or are they always read as 0
+	/// Read from the IE register.
+	/// High 3 bits always read as 1.
 	pub fn read(&self) -> u8 {
-		self.value & 0x1F
+		self.value | 0xE0
 	}
 
 	pub fn write(&mut self, value: u8) {
