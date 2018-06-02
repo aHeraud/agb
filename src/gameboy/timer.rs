@@ -1,4 +1,5 @@
 use gameboy::util::wrapping_add;
+use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 ///http://gbdev.gg8.se/wiki/articles/Timer_and_Divider_Registers
 ///http://gbdev.gg8.se/wiki/articles/Timer_Obscure_Behaviour
@@ -15,7 +16,6 @@ use gameboy::util::wrapping_add;
 const FREQ: [u16; 4] = [1024, 16, 64, 256];
 
 pub struct Timer {
-	pub int_requested: bool,
 	div: u16,
 	tima: u16,
 	tma: u8,
@@ -30,7 +30,6 @@ impl Timer {
 			tima: 0,
 			tma: 0,
 			tac: 0,
-			int_requested: false,
 			tima_overflow: false
 		}
 	}
@@ -40,11 +39,10 @@ impl Timer {
 		self.tima = 0;
 		self.tma = 0;
 		self.tac = 0;
-		self.int_requested = false;
 		self.tima_overflow = false;
 	}
 
-	///Writing to ff04 resets divider to 0
+	///Writing to $FF04 resets divider to 0
 	pub fn reset_div(&mut self) {
 		self.div = 0;
 	}
@@ -55,7 +53,7 @@ impl Timer {
 	}
 
 	///Called every M-Cycle (4 clock cycles)
-	pub fn emulate_hardware(&mut self, io: &mut [u8]) {
+	pub fn emulate_hardware(&mut self, io: &mut [u8], interrupt_line: &mut InterruptLine) {
 		//Read back registers
 		self.tima = io[0x05] as u16;
 		self.tma = io[0x06];
@@ -70,7 +68,7 @@ impl Timer {
 			//Tima overflow, load TMA
 			self.tima = self.tma as u16;
 			//Request Timer Interrupt
-			self.int_requested = true;
+			interrupt_line.request_interrupt(Interrupt::Timer);
 		}
 
 		//Incremented on rising edge

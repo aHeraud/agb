@@ -1,4 +1,4 @@
-#![feature(inclusive_range_syntax)]
+#![feature(nll)]
 
 extern crate time;
 

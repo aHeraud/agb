@@ -1250,6 +1250,7 @@ impl Gameboy {
 	///1 Byte
 	fn di(&mut self) {
 		//Set next ime state to disabled
+		self.cpu.ime = false;
 		self.cpu.next_ime_state = false;
 	}
 

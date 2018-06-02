@@ -19,17 +19,13 @@ use gameboy::timer::Timer;
 use gameboy::cartridge::{Cartridge, VirtualCartridge};
 use gameboy::joypad::Joypad;
 use gameboy::debugger::{Debugger, DebuggerInterface};
+use gameboy::cpu::interrupts::Interrupt;
 pub use gameboy::joypad::Key;
 
 const IO_SIZE: usize = 128;
 
 const WRAM_BANK_SIZE: usize = 4096;
 const WRAM_NUM_BANKS: usize = 8;
-
-#[derive(Debug)]
-pub enum Interrupt {
-	VBlank, LcdStat, Timer, Serial, Joypad
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Mode {
@@ -185,51 +181,33 @@ impl Gameboy {
 
 	///Called every 4 cycles
 	fn emulate_hardware(&mut self) {
+		use gameboy::cpu::interrupts::InterruptLine;
+
 		if self.oam_dma_active {
 			self.service_oam_dma();
 		}
 
-		self.timer.emulate_hardware(&mut self.io);
-		if self.timer.int_requested {
-			self.request_interrupt(Interrupt::Timer);
-			self.timer.int_requested = false;
-		}
-
-		self.ppu.emulate_hardware(&mut self.io);
-		if self.ppu.is_vblank_requested() {
-			self.request_interrupt(Interrupt::VBlank);
-		}
-		if self.ppu.is_lcdstat_requested() {
-			self.request_interrupt(Interrupt::LcdStat);
-		}
-		self.ppu.clear_interrupts();
+		let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
+		self.timer.emulate_hardware(&mut self.io, &mut interrupt_line);
+		self.ppu.emulate_hardware(&mut self.io, &mut interrupt_line);
 
 		if self.oam_dma_active {
 			self.update_oam_dma_status();
 		}
+
 		self.cpu.cycle_counter += 1;
 	}
 
 	fn request_interrupt(&mut self, req_int: Interrupt) {
-		let mask = match req_int {
-			Interrupt::VBlank => VBLANK_MASK,
-			Interrupt::LcdStat => LCDSTAT_MASK,
-			Interrupt::Timer =>  TIMER_MASK,
-			Interrupt::Serial => SERIAL_MASK,
-			Interrupt::Joypad => JOYPAD_MASK,
-		};
-
-		//Set the bit corresponding to the requested interrupt in IF (FF0F)
-		self.io[0x0F] |= mask;
-
-		//Interrupts wake cpu
+		self.cpu.interrupt_flag.request_interrupt(req_int);
+		self.cpu.stop = false;
 		self.cpu.halt = false;
 	}
 
 	///Handles interupts
 	///If an interrupt is requested in IF (FF0F), and it is enabled in IE (FFFF), and
 	///interrupts are enabled by IME (cpu flag),
-	///Servicing an interrupt consumes 5 M-Cycles (same as CALL i think)
+	///Servicing an interrupt consumes 5 M-Cycles (same as CALL I think)
 	///The order than interrupts are serviced is as follows:
 	///1. V-Blank
 	///2. LCD Stat
@@ -237,8 +215,9 @@ impl Gameboy {
 	///4. Serial
 	///5. Joypad
 	fn interrupt_service_routine(&mut self) {
-		let interrupt_flag: u8 = self.io[0x0F];
-			let interrupt_enable: u8 = self.cpu.ier;
+		if self.cpu.ime {
+			let interrupt_flag: u8 = self.cpu.interrupt_flag.read();
+			let interrupt_enable: u8 = self.cpu.interrupt_enable.read();
 
 			//only service requests where it's requested in IF and enabled in IE
 			let interrupts = interrupt_flag & interrupt_enable;
@@ -247,75 +226,64 @@ impl Gameboy {
 
 			if (interrupts & VBLANK_MASK) == VBLANK_MASK {
 				interrupt = Some(Interrupt::VBlank);
-				self.io[0x0F] &= !VBLANK_MASK; //reset the v-blank bit in IF
+				self.cpu.interrupt_flag.clear_interrupt(Interrupt::VBlank); //reset the v-blank bit in IF
 			}
 			else if (interrupts & LCDSTAT_MASK) == LCDSTAT_MASK {
 				interrupt = Some(Interrupt::LcdStat);
-				self.io[0x0F] &= !LCDSTAT_MASK; //reset the lcd-stat bit in IF
+				self.cpu.interrupt_flag.clear_interrupt(Interrupt::LcdStat); //reset the lcd-stat bit in IF
 			}
 			else if (interrupts & TIMER_MASK) == TIMER_MASK {
 				interrupt = Some(Interrupt::Timer);
-				self.io[0x0F] &= !TIMER_MASK; //reset the lcd-stat bit in IF
+				self.cpu.interrupt_flag.clear_interrupt(Interrupt::Timer); //reset the lcd-stat bit in IF
 			}
 			else if (interrupts & SERIAL_MASK) == SERIAL_MASK {
 				interrupt = Some(Interrupt::Serial);
-				self.io[0x0F] &= !SERIAL_MASK; //reset the lcd-stat bit in IF
+				self.cpu.interrupt_flag.clear_interrupt(Interrupt::Serial); //reset the lcd-stat bit in IF
 			}
 			else if (interrupts & JOYPAD_MASK) == JOYPAD_MASK {
 				interrupt = Some(Interrupt::Joypad);
-				self.io[0x0F] &= !JOYPAD_MASK; //reset the lcd-stat bit in IF
+				self.cpu.interrupt_flag.clear_interrupt(Interrupt::Joypad); //reset the lcd-stat bit in IF
 			}
 
-			if interrupt.is_some() {
-				if self.cpu.ime {
-					//Interrupts are enabled, so service this interrupt
-					//Nested interrupts are disabled unless the interrupt handler re enables them
-					self.cpu.next_ime_state = false;
+			if let Some(interrupt) = interrupt {
+				//Interrupts are enabled, so service this interrupt
+				//Nested interrupts are disabled unless the interrupt handler re enables them
+				self.cpu.next_ime_state = false;
 
-					//2 cycle delay
-					self.emulate_hardware();
-					self.emulate_hardware();
+				//2 cycle delay
+				self.emulate_hardware();
+				self.emulate_hardware();
 
-					//wake the processor
-					self.cpu.halt = false;
+				//wake the processor
+				self.cpu.halt = false;
 
-					//Service the interrupt
-					let new_pc: u16 = match interrupt.unwrap() {
-						Interrupt::VBlank => VBLANK_ADDR,
-						Interrupt::LcdStat => LCDSTAT_ADDR,
-						Interrupt::Timer => TIMER_ADDR,
-						Interrupt::Serial => SERIAL_ADDR,
-						Interrupt::Joypad => JOYPAD_ADDR,
-					};
+				//Service the interrupt
+				let new_pc = interrupt.address();
 
-					let old_pc = self.cpu.registers.pc;
-					let sp: u16 = self.cpu.registers.sp;
+				let old_pc = self.cpu.registers.pc;
+				let sp: u16 = self.cpu.registers.sp;
 
-					//TODO: if there is an oam dma transfer and sp doesn't point
-					//to hram, can this be put on the stack?
+				//TODO: if there is an oam dma transfer and sp doesn't point
+				//to hram, can this be put on the stack?
 
-					//push pc onto stack
-					let high: u8 = (old_pc >> 8) as u8;
-					self.write_byte_cpu(sp - 1, high);
-					self.emulate_hardware();
+				//push pc onto stack
+				let high: u8 = (old_pc >> 8) as u8;
+				self.write_byte_cpu(sp - 1, high);
+				self.emulate_hardware();
 
-					//push low byte of pc onto stack
-					let low: u8 = (old_pc & 0xFF) as u8;
-					self.write_byte_cpu(sp - 2, low);
-					self.emulate_hardware();
+				//push low byte of pc onto stack
+				let low: u8 = (old_pc & 0xFF) as u8;
+				self.write_byte_cpu(sp - 2, low);
+				self.emulate_hardware();
 
-					//sub 2 from sp because we pushed a word onto the stack
-					self.cpu.registers.sp -= 2;
+				//sub 2 from sp because we pushed a word onto the stack
+				self.cpu.registers.sp -= 2;
 
-					//jump to interrupt handler
-					self.cpu.registers.pc = new_pc;
-					self.emulate_hardware();	//1 cycle delay when setting pc
-				}
-				else {
-					//Interrupts are disabled, so just wake the cpu
-					self.cpu.halt = false;
-				}
+				//jump to interrupt handler
+				self.cpu.registers.pc = new_pc;
+				self.emulate_hardware();	//1 cycle delay when setting pc
 			}
+		}
 	}
 
 	/*

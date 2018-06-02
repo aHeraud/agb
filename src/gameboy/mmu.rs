@@ -15,7 +15,7 @@ impl MmuHelpers for Gameboy {
 		match address {
 			0xC000...0xCFFF => self.wram[(address - 0xC000) as usize],
 			0xD000...0xDFFF => self.wram[(address - 0xC000) as usize + (WRAM_BANK_SIZE * selected_wram_bank) as usize],
-			_ => panic!("gbc::read_byte_wram - invalid arguments, address must be in the range [0xC000, 0xDFFF]"),
+			_ => panic!("read_byte_wram - invalid arguments, address must be in the range [0xC000, 0xDFFF]"),
 		}
 	}
 
@@ -27,15 +27,16 @@ impl MmuHelpers for Gameboy {
 		match address {
 			0xC000...0xCFFF => self.wram[(address - 0xC000) as usize] = value,
 			0xD000...0xDFFF => self.wram[(address - 0xC000) as usize + (WRAM_BANK_SIZE * selected_wram_bank) as usize] = value,
-			_ => panic!("gbc::read_byte_wram - invalid arguments, address must be in the range [0xC000, 0xDFFF]"),
+			_ => panic!("read_byte_wram - invalid arguments, address must be in the range [0xC000, 0xDFFF]"),
 		};
 	}
 
 	fn read_byte_io(&self, address: u16) -> u8 {
 		match address {
 			0xFF00 => self.joypad.read_joyp(),
-			0xFF01...0xFF7F => self.io[(address - 0xFF00) as usize],
-			_ => panic!("gbc::read_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
+			0xFF0F => self.cpu.interrupt_flag.read(),
+			0xFF01...0xFF0E | 0xFF10...0xFF7F => self.io[(address - 0xFF00) as usize],
+			_ => panic!("read_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
 		}
 	}
 
@@ -44,9 +45,10 @@ impl MmuHelpers for Gameboy {
 		match address {
 			0xFF00 => self.joypad.write_joyp(value),
 			0xFF04 => self.timer.reset_div(),
+			0xFF0F => self.cpu.interrupt_flag.write(value),
 			0xFF46 => self.start_oam_dma(value),
-			0xFF01...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
-			_ => panic!("gbc::write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
+			0xFF01...0xFF03 | 0xFF05...0xFF0E | 0xFF10...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
+			_ => panic!("write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
 		};
 	}
 }
@@ -79,7 +81,7 @@ impl Mmu for Gameboy {
 			0xFE00...0xFE9F => self.ppu.read_byte_oam(&self.io, address),
 			0xFF00...0xFF7F => self.read_byte_io(address),
 			0xFF80...0xFFFE => self.cpu.read_byte_hram(address),
-			0xFFFF => self.cpu.ier,
+			0xFFFF => self.cpu.interrupt_enable.read(),
 			_ => 0xFF,
 		}
 	}
@@ -94,7 +96,7 @@ impl Mmu for Gameboy {
 			0xFE00...0xFE9F => self.ppu.write_byte_oam(&self.io, address, value),
 			0xFF00...0xFF7F => self.write_byte_io(address, value),
 			0xFF80...0xFFFE => self.cpu.write_byte_hram(address, value),
-			0xFFFF => self.cpu.ier = value,
+			0xFFFF => self.cpu.interrupt_enable.write(value),
 			_ => return,
 		};
 	}
@@ -117,7 +119,7 @@ impl Mmu for Gameboy {
 			0xFE00...0xFE9F => self.ppu.read_byte_oam(&self.io, address),
 			0xFF00...0xFF7F => self.read_byte_io(address),
 			0xFF80...0xFFFE => self.cpu.read_byte_hram(address),
-			0xFFFF => self.cpu.ier,
+			0xFFFF => self.cpu.interrupt_enable.read(),
 			_ => 0xFF,
 		}
 	}
@@ -136,7 +138,7 @@ impl Mmu for Gameboy {
 			0xFE00...0xFE9F => self.ppu.write_byte_oam(&self.io, address, value),
 			0xFF00...0xFF7F => self.write_byte_io(address, value),
 			0xFF80...0xFFFE => self.cpu.write_byte_hram(address, value),
-			0xFFFF => self.cpu.ier = value,
+			0xFFFF => self.cpu.interrupt_enable.write(value),
 			_ => return,
 		};
 	}

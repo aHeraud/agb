@@ -1,3 +1,5 @@
+use gameboy::cpu::interrupts::InterruptLine;
+
 pub mod dmg_ppu;
 pub mod cgb_ppu;
 
@@ -47,11 +49,7 @@ pub trait PPU {
 	fn write_byte_oam(&mut self, io: &[u8], address: u16, value: u8);
 
 	///Emulate the ppu for 1 M-Cycle (4 Clocks)
-	fn emulate_hardware(&mut self, io: &mut [u8]);
-
-	fn is_vblank_requested(&self) -> bool;
-	fn is_lcdstat_requested(&self) -> bool;
-	fn clear_interrupts(&mut self);
+	fn emulate_hardware(&mut self, io: &mut [u8], interrupt_line: &mut InterruptLine);
 
 	fn reset(&mut self);
 

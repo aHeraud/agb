@@ -1,3 +1,4 @@
+use gameboy::cpu::interrupts::InterruptLine;
 use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_CGB, OAM_SIZE, WIDTH, HEIGHT};
 
 //TODO: VRAM BANKS? HOW DOES IT WORK???
@@ -23,7 +24,7 @@ impl PPU for CgbPpu {
 		//TODO
 	}
 
-	fn emulate_hardware(&mut self, io: &mut [u8]) {
+	fn emulate_hardware(&mut self, io: &mut [u8], interrupt_line: &mut InterruptLine) {
 		//TODO
 	}
 
@@ -92,18 +93,6 @@ impl PPU for CgbPpu {
 			}
 			_ => panic!("ppu::read_byte_oam - invalid arguments, address must be in the range [0xFE00, 0xFE9F]."),
 		};
-	}
-
-	fn is_vblank_requested(&self) -> bool {
-		false
-	}
-
-	fn is_lcdstat_requested(&self) -> bool {
-		false
-	}
-
-	fn clear_interrupts(&mut self) {
-
 	}
 
 	fn get_framebuffer(&self) -> &[u32] {

@@ -2,6 +2,7 @@ use std::num::Wrapping;
 
 use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap};
 use super::{COINCIDENCE_INTERRUPT_ENABLE_MASK, OAM_INTERUPT_ENABLE_MASK, VBLANK_INTERRUPT_ENABLE_MASK, HBLANK_INTERRUPT_ENABLE_MASK};
+use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 /* RGBA shades for dmg */
 #[allow(dead_code)]
@@ -19,8 +20,6 @@ pub struct DmgPpu {
 	pub mode: PpuMode,
 	pub line: u8,
 	pub clock: u32,
-	vblank_requested: bool,
-	lcdstat_requested: bool,
 
 	//pub lcdc: u8,	//0xFF40
 	//pub stat: u8,	//0xFF41
@@ -61,8 +60,6 @@ impl DmgPpu {
 			mode: PpuMode::HBLANK,	//TODO: what is the lcd mode at power on?
 			line: 0,
 			clock: 0,
-			vblank_requested: false,
-			lcdstat_requested: false,
 		}
 	}
 
@@ -315,11 +312,9 @@ impl PPU for DmgPpu {
 		self.mode = PpuMode::HBLANK;
 		self.line = 0;
 		self.clock = 0;
-		self.vblank_requested = false;
-		self.lcdstat_requested = false;
 	}
 
-	fn emulate_hardware(&mut self, io: &mut [u8]) {
+	fn emulate_hardware(&mut self, io: &mut [u8], interrupt_line: &mut InterruptLine) {
 		let lcdc: u8 = io[0x40];
 		if lcdc & 128 == 0 {
 			//Bit 7 of LCDC is zero, so lcd is disabled
@@ -346,8 +341,7 @@ impl PPU for DmgPpu {
 
 						//Request a lcdstat interrupt if the oam interupt bit is enabled in stat
 						if stat & OAM_INTERUPT_ENABLE_MASK == OAM_INTERUPT_ENABLE_MASK {
-							//io[0x0F] |= LCDSTAT_INTERRUPT_BIT;
-							self.lcdstat_requested = true;
+							interrupt_line.request_interrupt(Interrupt::LcdStat);
 						}
 					}
 
@@ -356,13 +350,12 @@ impl PPU for DmgPpu {
 						self.mode = PpuMode::VBLANK;
 
 						//Request a vlbank interrupt
-						//io[0x0F] |= VBLANK_INTERRUPT_BIT;
-						self.vblank_requested = true;
+						interrupt_line.request_interrupt(Interrupt::VBlank);
 
 						//Additionally, if vblank is enabled in stat, request an lcdstat interrupt
 						if stat & VBLANK_INTERRUPT_ENABLE_MASK == VBLANK_INTERRUPT_ENABLE_MASK {
 							//io[0x0F] |= LCDSTAT_INTERRUPT_BIT;
-							self.lcdstat_requested = true;
+							interrupt_line.request_interrupt(Interrupt::LcdStat);
 						}
 
 						//Swap buffers
@@ -382,8 +375,7 @@ impl PPU for DmgPpu {
 
 						//Request a lcdstat interrupt if the oam interupt bit is enabled in stat
 						if stat & OAM_INTERUPT_ENABLE_MASK == OAM_INTERUPT_ENABLE_MASK {
-							//io[0x0F] |= LCDSTAT_INTERRUPT_BIT;
-							self.lcdstat_requested = true;
+							interrupt_line.request_interrupt(Interrupt::LcdStat);
 						}
 					}
 				}
@@ -401,8 +393,7 @@ impl PPU for DmgPpu {
 
 					//Request lcd stat interrupt if hblank interrupt is enabled in stat
 					if stat & HBLANK_INTERRUPT_ENABLE_MASK == HBLANK_INTERRUPT_ENABLE_MASK {
-						//io[0x0F] |= LCDSTAT_INTERRUPT_BIT;
-						self.lcdstat_requested = true;
+						interrupt_line.request_interrupt(Interrupt::LcdStat);
 					}
 
 					//draw the scanline
@@ -418,8 +409,7 @@ impl PPU for DmgPpu {
 		if lyc == self.line {
 			//Set coincidence flag, and if coincidence interrupts are enabled, request a lcdstat interrupt
 			if stat & COINCIDENCE_INTERRUPT_ENABLE_MASK == COINCIDENCE_INTERRUPT_ENABLE_MASK {
-				//io[0x0F] |= LCDSTAT_INTERRUPT_BIT;
-				self.lcdstat_requested = true;
+				interrupt_line.request_interrupt(Interrupt::LcdStat);
 			}
 			stat |= 4;
 		}
@@ -501,19 +491,6 @@ impl PPU for DmgPpu {
 			}
 			_ => panic!("ppu::read_byte_oam - invalid arguments, address must be in the range [0xFE00, 0xFE9F]."),
 		};
-	}
-
-	fn is_vblank_requested(&self) -> bool {
-		self.vblank_requested
-	}
-
-	fn is_lcdstat_requested(&self) -> bool {
-		self.lcdstat_requested
-	}
-
-	fn clear_interrupts(&mut self) {
-		self.vblank_requested = false;
-		self.lcdstat_requested = false;
 	}
 
 	fn get_framebuffer(&self) -> &[u32] {

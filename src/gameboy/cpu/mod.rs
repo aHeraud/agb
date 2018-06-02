@@ -1,8 +1,11 @@
 use gameboy::Mode;
-use self::registers::Registers;
 
+pub mod interrupts;
 pub mod registers;
 pub mod alu;
+
+use self::registers::Registers;
+use self::interrupts::{InterruptFlag, InterruptEnable};
 
 pub const ZERO_FLAG_MASK: u8 = 1 << 7;
 pub const SUBTRACTION_FLAG_MASK: u8 = 1 << 6;
@@ -20,10 +23,11 @@ pub struct CPU {
 	pub registers: Registers,
 	pub ime: bool,
 	pub next_ime_state: bool,
+	pub interrupt_flag: InterruptFlag, //Interrupt Flag - $FF0F
+	pub interrupt_enable: InterruptEnable, //Interrupt Enable Register - $FFFF
 	pub stop: bool,
 	pub halt: bool,
 	pub hram: [u8; HRAM_SIZE],
-	pub ier: u8,
 	pub double_speed_mode: bool,
 	pub cycle_counter: usize,
 }
@@ -34,7 +38,8 @@ impl CPU {
 			registers: Registers::new(),
 			ime: false,	//TODO: default value of ime
 			next_ime_state: false,
-			ier: 0,	//TODO: default value of ier
+			interrupt_flag: InterruptFlag::new(),
+			interrupt_enable: InterruptEnable::new(),
 			stop: false,
 			halt: false,
 			hram: [0; HRAM_SIZE],
@@ -50,7 +55,8 @@ impl CPU {
 		};
 		self.ime = false;
 		self.next_ime_state = false;
-		self.ier = 0;
+		self.interrupt_flag.reset();
+		self.interrupt_enable.reset();
 		self.stop = false;
 		self.halt = false;
 		self.double_speed_mode = false;
