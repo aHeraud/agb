@@ -372,13 +372,13 @@ impl DebuggerInterface for Gameboy {
 	fn write_memory(&mut self, address: u16, value: u8) {
 		match address {
 			0x0000...0x3FFF => {
-				let mut rom = self.rom_mut();
+				let rom = self.rom_mut();
 				if (address as usize) < rom.len() {
 					rom[address as usize] = value;
 				}
 			},
 			0x4000...0x7FFF => {
-				let mut rom = self.banked_rom_mut();
+				let rom = self.banked_rom_mut();
 				if (address as usize) < rom.len() {
 					rom[(address as usize) - 0x4000] = value;
 				}

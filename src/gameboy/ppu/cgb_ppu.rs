@@ -24,34 +24,34 @@ impl PPU for CgbPpu {
 		//TODO
 	}
 
-	fn emulate_hardware(&mut self, interrupt_line: &mut InterruptLine) {
+	fn emulate_hardware(&mut self, _interrupt_line: &mut InterruptLine) {
 		//TODO
 	}
 
-	fn read_io(&self, reg: PpuIoRegister) -> u8 {
+	fn read_io(&self, _reg: PpuIoRegister) -> u8 {
 		panic!("unimplemented");
 	}
 
-	fn write_io(&mut self, reg: PpuIoRegister, value: u8) {
+	fn write_io(&mut self, _reg: PpuIoRegister, _value: u8) {
 		panic!("unimplemented");
 	}
 
 	///Read a byte from the vram as the cpu.
 	///When the ppu is in mode 3, the cpu can't access vram, so 0xFF is returned instead
-	fn read_byte_vram(&self, address: u16) -> u8 {
+	fn read_byte_vram(&self, _address: u16) -> u8 {
 		unimplemented!();
 	}
 
-	fn write_byte_vram(&mut self, address: u16, value: u8) {
+	fn write_byte_vram(&mut self, _address: u16, _value: u8) {
 		unimplemented!();
 	}
 
 	//When the ppu is in mode 2 or 3,
-	fn read_byte_oam(&self, address: u16) -> u8 {
+	fn read_byte_oam(&self, _address: u16) -> u8 {
 		unimplemented!();
 	}
 
-	fn write_byte_oam(&mut self, address: u16, value: u8) {
+	fn write_byte_oam(&mut self, _address: u16, _value: u8) {
 		unimplemented!();
 	}
 
@@ -84,7 +84,7 @@ impl PPU for CgbPpu {
 	///get a bitmap with all of the tiles in vram
 	///returns a bitmap of 32-bit rgba pixel values
 	///TODO: implement
-	fn dump_tiles(&self)  -> super::Bitmap<u32> {
+	fn dump_tiles(&self) -> super::Bitmap<u32> {
 		let empty: Vec<u32> = Vec::new();
 		super::Bitmap {
 			width: 0,

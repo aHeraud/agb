@@ -28,7 +28,7 @@ fn map_register(reg: u8) -> Register {
 
 impl Gameboy {
 	pub fn execute(&mut self) {
-		use gameboy::debugger::DebuggerInterface;
+		//use gameboy::debugger::DebuggerInterface;
 		//self.interrupt_service_routine();  //called seperately to let debugger see calls to interrupt vectors
 		//println!("{}", self.trace());
 		if  self.cpu.halt {

@@ -48,7 +48,7 @@ pub fn sbc(register: u8, other: u8, flags: &mut u8) -> u8 {
 	*flags = SUBTRACTION_FLAG_MASK;
 	*flags |= !(((result & 0x007F) + 0x007F) | result) as u8 & ZERO_FLAG_MASK;
 	//*flags |= (((register & 0x000F) - (other & 0x000F) - (cy as u8)) << 1) & HALF_CARRY_FLAG_MASK;	//rust no like overflow
-	*flags |= (((register & 0x000F).wrapping_sub((other & 0x000F)).wrapping_sub((cy as u8))) << 1) & HALF_CARRY_FLAG_MASK;	//TODO: test this
+	*flags |= (((register & 0x000F).wrapping_sub(other & 0x000F).wrapping_sub(cy as u8)) << 1) & HALF_CARRY_FLAG_MASK;	//TODO: test this
 	*flags |= (result >> 4) as u8 & CARRY_FLAG_MASK;
 	(result & 0xFF) as u8
 }

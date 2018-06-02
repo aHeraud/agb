@@ -132,7 +132,7 @@ impl CartInfo {
 			0xFD => Ok(MBCType::TAMA5),
 			0xFE => Ok(MBCType::HUC3),
 			0xFF => Ok(MBCType::HUC1),
-			_ => Err(("Invalid value Cartridge Type in Cartridge Header at index 0x0147!")),
+			_ => Err("Invalid value Cartridge Type in Cartridge Header at index 0x0147!"),
 		}
 	}
 
@@ -142,7 +142,7 @@ impl CartInfo {
 			0x52 => Ok(0x4000 * 72),
 			0x53 => Ok(0x4000 * 80),
 			0x54 => Ok(0x4000 * 96),
-			_ => Err(("Invalid value Rom Size in Cartridge Header at index 0x0148!")),
+			_ => Err("Invalid value Rom Size in Cartridge Header at index 0x0148!"),
 		}
 	}
 
@@ -154,7 +154,7 @@ impl CartInfo {
 			0x03 => Ok(32 * 1024),	//4 8KB banks
 			0x04 => Ok(128 * 1024),	//16 8KB banks
 			0x05 => Ok(64 * 1024),	//8 8KB banks
-			_ => Err(("Invalid value Ram Size in Cartridge Header at index 0x0149!")),
+			_ => Err("Invalid value Ram Size in Cartridge Header at index 0x0149!"),
 		}
 	}
 }
