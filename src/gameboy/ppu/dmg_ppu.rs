@@ -1,7 +1,6 @@
 use std::num::Wrapping;
 
-use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap};
-use super::{COINCIDENCE_INTERRUPT_ENABLE_MASK, OAM_INTERUPT_ENABLE_MASK, VBLANK_INTERRUPT_ENABLE_MASK, HBLANK_INTERRUPT_ENABLE_MASK};
+use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister};
 use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 /* RGBA shades for dmg */
@@ -17,27 +16,47 @@ pub struct DmgPpu {
 	front_buffer_index: usize,
 	back_buffer_index: usize,
 	pub shades: [u32; 4],
-	pub mode: PpuMode,
-	pub line: u8,
 	pub clock: u32,
 
+	/* lcdc register */
+	lcdc: u8,
+
+	/* stat register */
+	lyc_interrupt_enable: bool,
+	oam_interrupt_enable: bool,
+	vblank_interrupt_enable: bool,
+	hblank_interrupt_enable: bool,
+	coincidence_flag: bool,
+	pub mode: PpuMode,
+
+	pub line: u8, //current scanline
+	scx: u8,
+	scy: u8,
+	lyc: u8,
+	wx: u8,
+	wy: u8,
+	bgp: u8,
+	obp0: u8,
+	obp1: u8,
+
+	//MMIO Registers
 	//pub lcdc: u8,	//0xFF40
 	//pub stat: u8,	//0xFF41
 	//pub scy: u8,	//0xFF42
 	//pub scx: u8,	//0xFF43
-	//pub ly: u8,		//0xFF44
+	//pub ly: u8,	//0xFF44
 	//pub lyc: u8,	//0xFF45
 	//pub dma: u8,	//0xFF46: DMA transfer and start address
 	//pub bgp: u8,	//0xFF47
 	//pub opb0: u8,	//0xFF48
 	//pub opb1: u8,	//0xFF49
-	//pub wy: u8,		//0xFF4A: Window Y Position
-	//pub wx: u8,		//0xFF4B: Window X Position - 7
+	//pub wy: u8,	//0xFF4A: Window Y Position
+	//pub wx: u8,	//0xFF4B: Window X Position - 7
 
 	////FF4F: This seems to be some sort of vram bank selector?
 	//pub hdma1: u8,	//0xFF51: New DMA Source, high
 	//pub hdma2: u8,	//0xFF52: New DMA Source, low
-	//pub hdma3: u8, 	//0xFF53: New DMA Destination, high
+	//pub hdma3: u8,	//0xFF53: New DMA Destination, high
 	//pub hdma4: u8,	//0xFF54: New DMA Destination, low
 	//pub hdma5: u8,	//0xFF55: New DMA Length/Mode/Start
 
@@ -57,26 +76,39 @@ impl DmgPpu {
 			front_buffer_index: 1,
 			back_buffer_index: 0,
 			shades: DEFAULT_SHADES,
-			mode: PpuMode::HBLANK,	//TODO: what is the lcd mode at power on?
 			line: 0,
 			clock: 0,
+
+			lcdc: 0x91,
+
+			/* LCD STAT */
+			lyc_interrupt_enable: false,
+			oam_interrupt_enable: false,
+			vblank_interrupt_enable: false,
+			hblank_interrupt_enable: false,
+			coincidence_flag: true,
+			mode: PpuMode::HBLANK,	//TODO: what is the lcd mode at power on?
+
+			scx: 0,
+			scy: 0,
+			lyc: 0,
+			wx: 0,
+			wy: 0,
+			bgp: 0xFC,
+			obp0: 0xFF,
+			obp1: 0xFF
 		}
 	}
 
-	fn draw_scanline(&mut self, io: &[u8]) {
+	fn draw_scanline(&mut self) {
 		let mut background: [u8; WIDTH] = [0; WIDTH];	//Background/Window
 		let mut bg_sprites: [u8; WIDTH] = [0; WIDTH];	//Background sprites (layer 0, behind bg)
 		let mut fg_sprites: [u8; WIDTH] = [0; WIDTH];	//Foreground Sprites
 
-		let lcdc = io[0x40];
-		let y_scroll = io[0x42];
-		let x_scroll = io[0x43];
-		let wx = (Wrapping(io[0x4B]) - Wrapping(7)).0;	//Window X Position
-		let wy = io[0x4A];	//Window Y Position
-		let bgp = io[0x47];
+		let wx = (Wrapping(self.wx) - Wrapping(7)).0;	//Window X Position
 
-		self.draw_bg(&mut background, lcdc, x_scroll, y_scroll, wx, wy, bgp);
-		self.draw_sprites(&mut bg_sprites, &mut fg_sprites, lcdc, io[0x48] /* OBP0 */, io[0x49] /* OBP1 */);
+		self.draw_bg(&mut background, self.lcdc, self.scx, self.scy, wx, self.wy, self.bgp);
+		self.draw_sprites(&mut bg_sprites, &mut fg_sprites, self.lcdc, self.obp0 /* OBP0 */, self.obp1 /* OBP1 */);
 
 		//combine all 3 layers and draw the entire scanline
 		for x in 0..WIDTH {
@@ -99,7 +131,7 @@ impl DmgPpu {
 	}
 
 	///Returns an array of WIDTH u8's representing the shade number of each pixel of the background
-	fn draw_bg(&self, background:  &mut[u8], lcdc: u8, x_scroll: u8, y_scroll: u8, wx: u8, wy: u8, bgp: u8) {
+	fn draw_bg(&self, background: &mut[u8], lcdc: u8, x_scroll: u8, y_scroll: u8, wx: u8, wy: u8, bgp: u8) {
 		let window_enabled: bool = (lcdc & 32 == 32) && (wy <= self.line);
 		let background_enabled: bool = lcdc & 1 == 1;
 		let window_tile_map: usize = match lcdc & 64 == 0 {
@@ -312,22 +344,81 @@ impl PPU for DmgPpu {
 		self.mode = PpuMode::HBLANK;
 		self.line = 0;
 		self.clock = 0;
+
+		self.lcdc = 0x91;
+
+		/* LCD STAT */
+		self.lyc_interrupt_enable = false;
+		self.oam_interrupt_enable = false;
+		self.vblank_interrupt_enable = false;
+		self.hblank_interrupt_enable = false;
+		self.coincidence_flag = true;
+		self.mode = PpuMode::HBLANK; //TODO: what is the lcd mode at power on?
+
+		self.scx = 0;
+		self.scy = 0;
+		self.lyc = 0;
+		self.wx = 0;
+		self.wy = 0;
+		self.bgp = 0xFC;
+		self.obp0 = 0xFF;
+		self.obp1 = 0xFF;
 	}
 
-	fn emulate_hardware(&mut self, io: &mut [u8], interrupt_line: &mut InterruptLine) {
-		let lcdc: u8 = io[0x40];
-		if lcdc & 128 == 0 {
+	fn read_io(&self, reg: PpuIoRegister) -> u8 {
+		use self::PpuIoRegister::*;
+		match reg {
+			Lcdc => self.lcdc,
+			Stat => {
+				(1 << 7) | /* high bit always 1 */
+				(self.lyc_interrupt_enable as u8) << 6 |
+				(self.oam_interrupt_enable as u8) << 5 |
+				(self.vblank_interrupt_enable as u8) << 4 |
+				(self.hblank_interrupt_enable as u8) << 3 |
+				(self.coincidence_flag as u8) << 2 |
+				(self.mode as u8)
+			},
+			Scx => self.scx,
+			Scy => self.scy,
+			Ly => self.line as u8,
+			Lyc => self.lyc,
+			Wx => self.wx,
+			Wy => self.wy,
+			Bgp => self.bgp,
+			Obp0 => self.obp0,
+			Obp1 => self.obp1,
+			_ => 0xFF
+		}
+	}
+
+	fn write_io(&mut self, reg: PpuIoRegister, value: u8) {
+		use self::PpuIoRegister::*;
+		match reg {
+			Lcdc => self.lcdc = value,
+			Stat => {
+				self.lyc_interrupt_enable = (value & 0x40) != 0;
+				self.oam_interrupt_enable = (value & 0x20) != 0;
+				self.vblank_interrupt_enable = (value & 0x10) != 0;
+				self.hblank_interrupt_enable = (value & 8) != 0;
+			},
+			Scx => self.scx = value,
+			Scy => self.scy = value,
+			Ly => { /* read only */ },
+			Lyc => self.lyc = value,
+			Wx => self.wx = value,
+			Wy => self.wy = value,
+			Bgp => self.bgp = value,
+			Obp0 => self.obp0 = value,
+			Obp1 => self.obp1 = value,
+			_ => {}
+		}
+	}
+
+	fn emulate_hardware(&mut self, interrupt_line: &mut InterruptLine) {
+		if self.lcdc & 128 == 0 {
 			//Bit 7 of LCDC is zero, so lcd is disabled
-			//dr.mario disables the lcd then waits for mode to be 0, so
-			//maybe when the lcd is disabled something special happens other than
-			//just pausing, this needs to be tested more.
-			let stat: u8 = 0x80;
-			io[0x41] = stat;
 			return;
 		}
-
-		let mut stat: u8 = io[0x41];
-		stat = stat & 0b01111000; //Clear coincidence flag and mode
 
 		self.clock += 4;
 		match self.mode {
@@ -340,7 +431,7 @@ impl PPU for DmgPpu {
 						self.mode = PpuMode::SEARCH_OAM;
 
 						//Request a lcdstat interrupt if the oam interupt bit is enabled in stat
-						if stat & OAM_INTERUPT_ENABLE_MASK == OAM_INTERUPT_ENABLE_MASK {
+						if self.oam_interrupt_enable {
 							interrupt_line.request_interrupt(Interrupt::LcdStat);
 						}
 					}
@@ -353,8 +444,7 @@ impl PPU for DmgPpu {
 						interrupt_line.request_interrupt(Interrupt::VBlank);
 
 						//Additionally, if vblank is enabled in stat, request an lcdstat interrupt
-						if stat & VBLANK_INTERRUPT_ENABLE_MASK == VBLANK_INTERRUPT_ENABLE_MASK {
-							//io[0x0F] |= LCDSTAT_INTERRUPT_BIT;
+						if self.vblank_interrupt_enable {
 							interrupt_line.request_interrupt(Interrupt::LcdStat);
 						}
 
@@ -374,7 +464,7 @@ impl PPU for DmgPpu {
 						self.mode = PpuMode::SEARCH_OAM;
 
 						//Request a lcdstat interrupt if the oam interupt bit is enabled in stat
-						if stat & OAM_INTERUPT_ENABLE_MASK == OAM_INTERUPT_ENABLE_MASK {
+						if self.oam_interrupt_enable {
 							interrupt_line.request_interrupt(Interrupt::LcdStat);
 						}
 					}
@@ -392,12 +482,12 @@ impl PPU for DmgPpu {
 					self.clock = 0;
 
 					//Request lcd stat interrupt if hblank interrupt is enabled in stat
-					if stat & HBLANK_INTERRUPT_ENABLE_MASK == HBLANK_INTERRUPT_ENABLE_MASK {
+					if self.hblank_interrupt_enable {
 						interrupt_line.request_interrupt(Interrupt::LcdStat);
 					}
 
 					//draw the scanline
-					self.draw_scanline(io);
+					self.draw_scanline();
 				}
 			},
 		};
@@ -405,39 +495,21 @@ impl PPU for DmgPpu {
 		//Write back io registers
 
 		//Check for coincidence interrupt
-		let lyc: u8 = io[0x45];
-		if lyc == self.line {
+		if self.lyc == self.line {
 			//Set coincidence flag, and if coincidence interrupts are enabled, request a lcdstat interrupt
-			if stat & COINCIDENCE_INTERRUPT_ENABLE_MASK == COINCIDENCE_INTERRUPT_ENABLE_MASK {
+			if self.lyc_interrupt_enable {
 				interrupt_line.request_interrupt(Interrupt::LcdStat);
 			}
-			stat |= 4;
+			self.coincidence_flag = true;
 		}
-
-		let mode: u8 = match self.mode {
-			PpuMode::HBLANK => 0,
-			PpuMode::VBLANK => 1,
-			PpuMode::SEARCH_OAM => 2,
-			PpuMode::TRANSFER_TO_LCD => 3,
-		};
-
-		stat |= mode | 0x80;	//High bit of stat always set
-
-		io[0x41] = stat;
-		io[0x44] = self.line;
-	}
-
-	fn init_io_registers(&mut self, io: &mut [u8]) {
-		io[0x40] = 0x91;	//LCDC
-		io[0x41] = 0x85;	//STAT
 	}
 
 	///Read a byte from the vram as the cpu.
 	///When the ppu is in mode 3, the cpu can't access vram, so 0xFF is returned instead
-	fn read_byte_vram(&self, io: &[u8], address: u16) -> u8 {
+	fn read_byte_vram(&self, address: u16) -> u8 {
 		match address {
 			0x8000...0x9FFF => {
-				let mode: u8 = io[0x41] & 3;
+				let mode: u8 = self.mode as u8;
 				if mode == 3 {
 					//Ppu is in mode 3 (transferring data to lcd driver)
 					//and the cpu can't access vram
@@ -451,10 +523,10 @@ impl PPU for DmgPpu {
 		}
 	}
 
-	fn write_byte_vram(&mut self, io: &[u8], address: u16, value: u8) {
+	fn write_byte_vram(&mut self, address: u16, value: u8) {
 		match address {
 			0x8000...0x9FFF => {
-				let mode: u8 = io[0x41] & 3;
+				let mode: u8 = self.mode as u8;
 				if mode != 3 {
 					//Not in mode 3, cpu can write to vram
 					self.vram[(address - 0x8000) as usize] = value;
@@ -465,10 +537,10 @@ impl PPU for DmgPpu {
 	}
 
 	//When the ppu is in mode 2 or 3,
-	fn read_byte_oam(&self, io: &[u8], address: u16) -> u8 {
+	fn read_byte_oam(&self, address: u16) -> u8 {
 		match address {
 			0xFE00...0xFE9F => {
-				let mode: u8 = io[0x41] & 3;
+				let mode: u8 = self.mode as u8;
 				if mode > 1 {
 					//ppu is in mode 2 or 3, cpu can't access oam
 					return 0xFF;
@@ -481,10 +553,10 @@ impl PPU for DmgPpu {
 		}
 	}
 
-	fn write_byte_oam(&mut self, io: &[u8], address: u16, value: u8) {
+	fn write_byte_oam(&mut self, address: u16, value: u8) {
 		match address {
 			0xFE00...0xFE9F => {
-				let mode: u8 = io[0x41] & 3;
+				let mode: u8 = self.mode as u8;
 				if mode < 2 {
 					self.oam[(address - 0xFE00) as usize] = value;
 				}
@@ -563,7 +635,7 @@ impl PPU for DmgPpu {
 		}
 	}
 
-	fn dump_bg(&self, io: &[u8]) -> Bitmap<u32> {
+	fn dump_bg(&self) -> Bitmap<u32> {
 		const ROWS: usize = 32;
 		const COLS: usize = 32;
 		const TILE_WIDTH: usize = 8;
@@ -574,13 +646,11 @@ impl PPU for DmgPpu {
 			buf.resize(ROWS * COLS * TILE_WIDTH * TILE_HEIGHT, 0);
 			buf.into_boxed_slice()
 		};
-		let bgp = io[0x47];
-		let lcdc = io[0x40];
-		let tile_map_address = match lcdc & 8 {
+		let tile_map_address = match self.lcdc & 8 {
 			0 => 0x9800,
 			_ => 0x9c00,
 		};
-		let tile_data_address = match lcdc & 16 {
+		let tile_data_address = match self.lcdc & 16 {
 			0 => 0x8800,
 			_ => 0x8000,
 		};
@@ -598,7 +668,7 @@ impl PPU for DmgPpu {
 					//the tile at address 0x8800 is actually tile 128, not 0
 					tile_number += 128;
 				}
-				let tile = self.get_tile(tile_number, bgp);
+				let tile = self.get_tile(tile_number, self.bgp);
 				let bitmap_index: usize = (row * TILE_WIDTH * COLS * TILE_HEIGHT) + (col * TILE_WIDTH);
 				for y in 0..tile.height {
 					for x in 0..tile.width {

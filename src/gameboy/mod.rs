@@ -152,7 +152,7 @@ impl Gameboy {
 		if self.oam_dma_current_cycle > 0 && self.oam_dma_current_cycle < 161 {
 			let offset = self.oam_dma_current_cycle - 1;
 			let value: u8 = self.read_byte(self.oam_dma_start_address + offset);
-			self.ppu.write_byte_oam(&self.io, 0xFE00 + offset, value);
+			self.ppu.write_byte_oam(0xFE00 + offset, value);
 		}
 	}
 
@@ -175,7 +175,7 @@ impl Gameboy {
 
 		let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
 		self.timer.emulate_hardware(&mut self.io, &mut interrupt_line);
-		self.ppu.emulate_hardware(&mut self.io, &mut interrupt_line);
+		self.ppu.emulate_hardware(&mut interrupt_line);
 
 		if self.oam_dma_active {
 			self.update_oam_dma_status();

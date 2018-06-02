@@ -433,7 +433,7 @@ impl DebuggerInterface for Gameboy {
 	}
 
 	fn dump_bg(&self) -> Bitmap<u32> {
-		self.ppu.dump_bg(&self.io)
+		self.ppu.dump_bg()
 	}
 
 	///Returns a string containing some debug info about the current state of the emulator core

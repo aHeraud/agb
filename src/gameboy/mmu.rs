@@ -32,24 +32,35 @@ impl MmuHelpers for Gameboy {
 	}
 
 	fn read_byte_io(&self, address: u16) -> u8 {
-		match address {
-			0xFF00 => self.joypad.read_joyp(),
-			0xFF0F => self.cpu.interrupt_flag.read(),
-			0xFF01...0xFF0E | 0xFF10...0xFF7F => self.io[(address - 0xFF00) as usize],
-			_ => panic!("read_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
+		use gameboy::ppu::PpuIoRegister;
+		if let Some(register) = PpuIoRegister::map_address(address) {
+			self.ppu.read_io(register)
+		}
+		else {
+			match address {
+				0xFF00 => self.joypad.read_joyp(),
+				0xFF0F => self.cpu.interrupt_flag.read(),
+				0xFF01...0xFF0E | 0xFF10...0xFF7F => self.io[(address - 0xFF00) as usize],
+				_ => panic!("read_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
+			}
 		}
 	}
 
-	//FF4F is the io register that controlls the vram bank on gbc
 	fn write_byte_io(&mut self, address: u16, value: u8) {
-		match address {
-			0xFF00 => self.joypad.write_joyp(value),
-			0xFF04 => self.timer.reset_div(),
-			0xFF0F => self.cpu.interrupt_flag.write(value),
-			0xFF46 => self.start_oam_dma(value),
-			0xFF01...0xFF03 | 0xFF05...0xFF0E | 0xFF10...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
-			_ => panic!("write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
-		};
+		use gameboy::ppu::PpuIoRegister;
+		if let Some(register) = PpuIoRegister::map_address(address) {
+			self.ppu.write_io(register, value);
+		}
+		else {
+			match address {
+				0xFF00 => self.joypad.write_joyp(value),
+				0xFF04 => self.timer.reset_div(),
+				0xFF0F => self.cpu.interrupt_flag.write(value),
+				0xFF46 => self.start_oam_dma(value),
+				0xFF01...0xFF03 | 0xFF05...0xFF0E | 0xFF10...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize] = value,
+				_ => panic!("write_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
+			};
+		}
 	}
 }
 
@@ -74,11 +85,11 @@ impl Mmu for Gameboy {
 	fn read_byte(&self, address: u16) -> u8 {
 		match address {
 			0x0000...0x7FFF => self.cart.read_byte_rom(address),
-			0x8000...0x9FFF => self.ppu.read_byte_vram(&self.io, address),
+			0x8000...0x9FFF => self.ppu.read_byte_vram(address),
 			0xA000...0xBFFF => self.cart.read_byte_ram(address),
 			0xC000...0xDFFF => self.read_byte_wram(address),
 			0xE000...0xFDFF => self.read_byte_wram(address - 0x2000),	//Mirror of wram
-			0xFE00...0xFE9F => self.ppu.read_byte_oam(&self.io, address),
+			0xFE00...0xFE9F => self.ppu.read_byte_oam(address),
 			0xFF00...0xFF7F => self.read_byte_io(address),
 			0xFF80...0xFFFE => self.cpu.read_byte_hram(address),
 			0xFFFF => self.cpu.interrupt_enable.read(),
@@ -89,11 +100,11 @@ impl Mmu for Gameboy {
 	fn write_byte(&mut self, address: u16, value: u8) {
 		match address {
 			0x0000...0x7FFF => self.cart.write_byte_rom(address, value),
-			0x8000...0x9FFF => self.ppu.write_byte_vram(&self.io, address, value),
+			0x8000...0x9FFF => self.ppu.write_byte_vram(address, value),
 			0xA000...0xBFFF => self.cart.write_byte_ram(address, value),
 			0xC000...0xDFFF => self.write_byte_wram(address, value),
 			0xE000...0xFDFF => self.write_byte_wram(address - 0x2000, value),	//Mirror of wram
-			0xFE00...0xFE9F => self.ppu.write_byte_oam(&self.io, address, value),
+			0xFE00...0xFE9F => self.ppu.write_byte_oam(address, value),
 			0xFF00...0xFF7F => self.write_byte_io(address, value),
 			0xFF80...0xFFFE => self.cpu.write_byte_hram(address, value),
 			0xFFFF => self.cpu.interrupt_enable.write(value),
@@ -112,11 +123,11 @@ impl Mmu for Gameboy {
 		}
 		match address {
 			0x0000...0x7FFF => self.cart.read_byte_rom(address),
-			0x8000...0x9FFF => self.ppu.read_byte_vram(&self.io, address),
+			0x8000...0x9FFF => self.ppu.read_byte_vram(address),
 			0xA000...0xBFFF => self.cart.read_byte_ram(address),
 			0xC000...0xDFFF => self.read_byte_wram(address),
 			0xE000...0xFDFF => self.read_byte_wram(address - 0x2000),	//Mirror of wram
-			0xFE00...0xFE9F => self.ppu.read_byte_oam(&self.io, address),
+			0xFE00...0xFE9F => self.ppu.read_byte_oam(address),
 			0xFF00...0xFF7F => self.read_byte_io(address),
 			0xFF80...0xFFFE => self.cpu.read_byte_hram(address),
 			0xFFFF => self.cpu.interrupt_enable.read(),
@@ -131,11 +142,11 @@ impl Mmu for Gameboy {
 		}
 		match address {
 			0x0000...0x7FFF => self.cart.write_byte_rom(address, value),
-			0x8000...0x9FFF => self.ppu.write_byte_vram(&self.io, address, value),
+			0x8000...0x9FFF => self.ppu.write_byte_vram(address, value),
 			0xA000...0xBFFF => self.cart.write_byte_ram(address, value),
 			0xC000...0xDFFF => self.write_byte_wram(address, value),
 			0xE000...0xFDFF => self.write_byte_wram(address - 0x2000, value),	//Mirror of wram
-			0xFE00...0xFE9F => self.ppu.write_byte_oam(&self.io, address, value),
+			0xFE00...0xFE9F => self.ppu.write_byte_oam(address, value),
 			0xFF00...0xFF7F => self.write_byte_io(address, value),
 			0xFF80...0xFFFE => self.cpu.write_byte_hram(address, value),
 			0xFFFF => self.cpu.interrupt_enable.write(value),

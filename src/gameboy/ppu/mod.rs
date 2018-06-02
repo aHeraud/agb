@@ -24,32 +24,89 @@ pub struct Bitmap<T> {
 }
 
 #[allow(non_camel_case_types)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PpuMode {
-	HBLANK, VBLANK, SEARCH_OAM, TRANSFER_TO_LCD
+	HBLANK = 0, VBLANK = 1, SEARCH_OAM = 2, TRANSFER_TO_LCD = 3
 }
 
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
 
-pub trait PPU {
-	fn init_io_registers(&mut self, io: &mut [u8]);
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PpuIoRegister {
+	Lcdc, Stat, Scy, Scx, Ly, Lyc, Wy, Wx, Bgp, Obp0, Obp1, Bgpi, Bgpd, Obpi, Obpd, Vbk
+}
 
+impl PpuIoRegister {
+	pub fn address(&self) -> u16 {
+		use self::PpuIoRegister::*;
+		match *self {
+			Lcdc => 0xFF40,
+			Stat => 0xFF41,
+			Scy => 0xFF42,
+			Scx => 0xFF43,
+			Ly => 0xFF44,
+			Lyc => 0xFF45,
+			Bgp => 0xFF47,
+			Obp0 => 0xFF48,
+			Obp1 => 0xFF49,
+			Wy => 0xFF4A,
+			Wx => 0xFF4B,
+			Vbk => 0xFF4F,
+			Bgpi => 0xFF68,
+			Bgpd => 0xFF69,
+			Obpi => 0xFF6A,
+			Obpd => 0xFF6B
+		}
+	}
+
+	pub fn map_address(address: u16) -> Option<PpuIoRegister> {
+		use self::PpuIoRegister::*;
+		match address {
+			0xFF40 => Some(Lcdc),
+			0xFF41 => Some(Stat),
+			0xFF42 => Some(Scy),
+			0xFF43 => Some(Scx),
+			0xFF44 => Some(Ly),
+			0xFF45 => Some(Lyc),
+			0xFF47 => Some(Bgp),
+			0xFF48 => Some(Obp0),
+			0xFF49 => Some(Obp1),
+			0xFF4A => Some(Wy),
+			0xFF4B => Some(Wx),
+			0xFF4F => Some(Vbk),
+			0xFF68 => Some(Bgpi),
+			0xFF69 => Some(Bgpd),
+			0xFF6A => Some(Obpi),
+			0xFF6B => Some(Obpd),
+			_ => None
+		}
+	}
+}
+
+pub trait PPU {
 	///Read a byte from the vram
 	///vram is unreadable during certain ppu modes, so 0xFF is returned instead
 	///this isn't meant to be used by the ppu itself, because it has direct access to the vram
-	fn read_byte_vram(&self, io: &[u8], address: u16) -> u8;
+	fn read_byte_vram(&self, address: u16) -> u8;
 
 	///Write a byte to the vram
-	fn write_byte_vram(&mut self, io: &[u8], address: u16, value: u8);
+	fn write_byte_vram(&mut self, address: u16, value: u8);
 
 	///Read a byte from the oam
-	fn read_byte_oam(&self, io: &[u8], address: u16) -> u8;
+	fn read_byte_oam(&self, address: u16) -> u8;
 
 	///Write a byte to the oam
-	fn write_byte_oam(&mut self, io: &[u8], address: u16, value: u8);
+	fn write_byte_oam(&mut self, address: u16, value: u8);
+
+	/// Read one of the ppu's memory mapped io registers
+	fn read_io(&self, reg: PpuIoRegister) -> u8;
+
+	/// Write to one of the ppu's memory mapped io registers
+	fn write_io(&mut self, reg: PpuIoRegister, value: u8);
 
 	///Emulate the ppu for 1 M-Cycle (4 Clocks)
-	fn emulate_hardware(&mut self, io: &mut [u8], interrupt_line: &mut InterruptLine);
+	fn emulate_hardware(&mut self, interrupt_line: &mut InterruptLine);
 
 	fn reset(&mut self);
 
@@ -64,5 +121,5 @@ pub trait PPU {
 	fn get_oam(&self) -> &[u8];
 	fn get_oam_mut(&mut self) -> &mut[u8];
 	fn dump_tiles(&self) -> Bitmap<u32>;
-	fn dump_bg(&self, io: &[u8]) -> Bitmap<u32>;
+	fn dump_bg(&self) -> Bitmap<u32>;
 }
