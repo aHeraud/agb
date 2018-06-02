@@ -32,20 +32,6 @@ pub enum Mode {
 	DMG, CGB,
 }
 
-//Interrupt bit masks
-const VBLANK_MASK:  u8 = 1 << 0;
-const LCDSTAT_MASK: u8 = 1 << 1;
-const TIMER_MASK:   u8 = 1 << 2;
-const SERIAL_MASK:  u8 = 1 << 3;
-const JOYPAD_MASK:  u8 = 1 << 4;
-
-//Interrupt handler addresses
-const VBLANK_ADDR:  u16 = 0x0040;
-const LCDSTAT_ADDR: u16 = 0x0048;
-const TIMER_ADDR:   u16 = 0x0050;
-const SERIAL_ADDR:  u16 = 0x0058;
-const JOYPAD_ADDR:  u16 = 0x0060;
-
 pub struct Gameboy {
 	pub cpu: CPU,
 	pub timer: Timer,
@@ -224,23 +210,23 @@ impl Gameboy {
 
 			let mut interrupt: Option<Interrupt> = None;
 
-			if (interrupts & VBLANK_MASK) == VBLANK_MASK {
+			if (interrupts & (Interrupt::VBlank).mask()) == (Interrupt::VBlank).mask() {
 				interrupt = Some(Interrupt::VBlank);
 				self.cpu.interrupt_flag.clear_interrupt(Interrupt::VBlank); //reset the v-blank bit in IF
 			}
-			else if (interrupts & LCDSTAT_MASK) == LCDSTAT_MASK {
+			else if (interrupts & (Interrupt::LcdStat).mask()) == (Interrupt::LcdStat).mask() {
 				interrupt = Some(Interrupt::LcdStat);
 				self.cpu.interrupt_flag.clear_interrupt(Interrupt::LcdStat); //reset the lcd-stat bit in IF
 			}
-			else if (interrupts & TIMER_MASK) == TIMER_MASK {
+			else if (interrupts & (Interrupt::Timer).mask()) == (Interrupt::Timer).mask() {
 				interrupt = Some(Interrupt::Timer);
 				self.cpu.interrupt_flag.clear_interrupt(Interrupt::Timer); //reset the lcd-stat bit in IF
 			}
-			else if (interrupts & SERIAL_MASK) == SERIAL_MASK {
+			else if (interrupts & (Interrupt::Serial).mask()) == (Interrupt::Serial).mask() {
 				interrupt = Some(Interrupt::Serial);
 				self.cpu.interrupt_flag.clear_interrupt(Interrupt::Serial); //reset the lcd-stat bit in IF
 			}
-			else if (interrupts & JOYPAD_MASK) == JOYPAD_MASK {
+			else if (interrupts & (Interrupt::Joypad).mask()) == (Interrupt::Joypad).mask() {
 				interrupt = Some(Interrupt::Joypad);
 				self.cpu.interrupt_flag.clear_interrupt(Interrupt::Joypad); //reset the lcd-stat bit in IF
 			}
