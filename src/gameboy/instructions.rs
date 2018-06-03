@@ -32,7 +32,7 @@ impl Gameboy {
 		//self.interrupt_service_routine();  //called seperately to let debugger see calls to interrupt vectors
 		//println!("{}", self.trace());
 		if  self.cpu.halt {
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 		}
 
 		else {
@@ -42,7 +42,7 @@ impl Gameboy {
 
 			let opcode: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 			self.cpu.registers.pc += 1;
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 
 			match opcode {
 				0x00 => self.nop(),
@@ -208,19 +208,19 @@ impl Gameboy {
 	///Because of the 1 M-Cycle delay, push takes 1 more M-Cycle than pop.
 	fn push(&mut self, value: u16) {
 		//push has an extra internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//push high byte of pc onto stack
 		let sp: u16 = self.cpu.registers.sp;
 
 		let high: u8 = (value >> 8) as u8;
 		self.write_byte_cpu(sp.wrapping_sub(1), high);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//push low byte of pc onto stack
 		let low: u8 = (value & 0xFF) as u8;
 		self.write_byte_cpu(sp.wrapping_sub(2), low);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//sub 2 from sp because we pushed a word onto the stack
 		self.cpu.registers.sp = self.cpu.registers.sp.wrapping_sub(2);
@@ -230,10 +230,10 @@ impl Gameboy {
 	///2 M-Cycles of memory access
 	fn pop(&mut self) -> u16 {
 		let low: u8 = self.read_byte_cpu(self.cpu.registers.sp);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let high: u8 = self.read_byte_cpu(self.cpu.registers.sp + 1);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.sp += 2;
 		((high as u16) << 8) | (low as u16)
@@ -245,19 +245,19 @@ impl Gameboy {
 		self.cpu.registers.pc = addr;
 
 		//internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	fn jp_conditional(&mut self, conditional: Conditional) {
 		//1 cycle to read low byte of address
 		let addr_low: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle to read high byte of address
 		let addr_high: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let branch: bool = match conditional {
 			Conditional::Z => self.cpu.registers.f & ZERO_FLAG_MASK == ZERO_FLAG_MASK,
@@ -268,7 +268,7 @@ impl Gameboy {
 
 		if branch {
 			//1 cycle of internal delay
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 
 			//finally set pc? or does this happen before the last delay
 			self.cpu.registers.pc = ((addr_high as u16) << 8) | (addr_low as u16);
@@ -280,11 +280,11 @@ impl Gameboy {
 	fn call_conditional(&mut self, conditional: Conditional) {
 		//read low byte of address
 		let low: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//read high byte of address
 		let high: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let branch: bool = match conditional {
 			Conditional::Z => self.cpu.registers.f & ZERO_FLAG_MASK == ZERO_FLAG_MASK,
@@ -324,7 +324,7 @@ impl Gameboy {
 			Register::AT_HL => {
 				let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 				let value = self.read_byte_cpu(hl);
-				self.emulate_hardware();
+				self.emulate_hardware(4);
 				value
 			},
 			Register::A => self.cpu.registers.a,
@@ -343,7 +343,7 @@ impl Gameboy {
 			Register::AT_HL => {
 				let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 				self.write_byte_cpu(hl, val);
-				self.emulate_hardware();
+				self.emulate_hardware(4);
 			},
 			Register::A => self.cpu.registers.a = val,
 			Register::F => self.cpu.registers.f = val,
@@ -388,7 +388,7 @@ impl Gameboy {
 	///2-M Cycles
 	fn inc_r16(&mut self, reg: RegisterPair) {
 		//1 cycle extra internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let mut val: u16 = self.cpu.registers.get_register_pair(reg);
 		val = wrapping_add(val, 1);
@@ -399,7 +399,7 @@ impl Gameboy {
 	///2 M-Cycles
 	fn dec_r16(&mut self, reg: RegisterPair) {
 		//1 cycle of internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let mut val: u16 = self.cpu.registers.get_register_pair(reg);
 		val = wrapping_sub(val, 1);
@@ -427,7 +427,7 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn ld_r8_d8(&mut self, reg: Register) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 		self.set_register(reg, imm);
 	}
 
@@ -435,7 +435,7 @@ impl Gameboy {
 	///2 M-Cycles
 	///Flags: - 0 H C
 	fn add_hl_r16(&mut self, reg: RegisterPair) {
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 		let mut hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		let other: u16 = self.cpu.registers.get_register_pair(reg);
 		hl = cpu::alu::add16(hl, other, &mut self.cpu.registers.f);
@@ -454,11 +454,11 @@ impl Gameboy {
 	fn ld_bc_d16(&mut self) {
 		//1 cycle memory access for low byte
 		let low: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle memory access to read high byte
 		let high: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//set bc
 		self.cpu.registers.b = high;
@@ -472,7 +472,7 @@ impl Gameboy {
 		let bc: u16 = self.cpu.registers.get_register_pair(RegisterPair::BC);
 		let a: u8 = self.cpu.registers.a;
 		self.write_byte_cpu(bc, a);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///TODO: what is this really???
@@ -481,10 +481,10 @@ impl Gameboy {
 	///Length: 3 bytes
 	fn ld_at_a16_sp(&mut self) {
 		let addr_low: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let addr_high: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let addr: u16 = (addr_high as u16) << 8 | (addr_low as u16);
 
@@ -493,10 +493,10 @@ impl Gameboy {
 		let sp_high: u8 = (sp >> 8) as u8;
 
 		self.write_byte_cpu(addr, sp_low);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.write_byte_cpu(addr + 1, sp_high);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x07: RLCA
@@ -514,7 +514,7 @@ impl Gameboy {
 	fn ld_a_at_bc(&mut self) {
 		let bc: u16 = self.cpu.registers.get_register_pair(RegisterPair::BC);
 		self.cpu.registers.a = self.read_byte_cpu(bc);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x0F: RRCA
@@ -540,11 +540,11 @@ impl Gameboy {
 	fn ld_de_d16(&mut self) {
 		//1 cycle to load low byte
 		self.cpu.registers.e = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle to load high byte
 		self.cpu.registers.d = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x12: LD (DE), A
@@ -554,7 +554,7 @@ impl Gameboy {
 		let de: u16 = self.cpu.registers.get_register_pair(RegisterPair::DE);
 		let a: u8 = self.cpu.registers.a;
 		self.write_byte_cpu(de, a);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x17: RLA
@@ -573,10 +573,10 @@ impl Gameboy {
 	fn jr_r8(&mut self) {
 		//1 cycle to read offset
 		let offset: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.jr(offset);
 	}
@@ -587,7 +587,7 @@ impl Gameboy {
 	fn ld_a_at_de(&mut self) {
 		let de: u16 = self.cpu.registers.get_register_pair(RegisterPair::DE);
 		self.cpu.registers.a = self.read_byte_cpu(de);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x1F: RRA
@@ -611,12 +611,12 @@ impl Gameboy {
 	fn jr_nz_r8(&mut self) {
 		//1 cycle to read operand
 		let offset: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle if conditional taken
 		if self.cpu.registers.f & cpu::ZERO_FLAG_MASK == 0 {
 			//zero flag not set, add/subtract offset from pc
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 			self.jr(offset);
 		}
 	}
@@ -628,12 +628,12 @@ impl Gameboy {
 		//read low byte into l
 		let low: u8 = self.read_next();
 		self.cpu.registers.l = low;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//read high byte into h
 		let high: u8 = self.read_next();
 		self.cpu.registers.h = high;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x22: LD (HL+), A
@@ -645,7 +645,7 @@ impl Gameboy {
 		self.write_byte_cpu(hl, a);
 		//increment hl
 		self.cpu.registers.set_register_pair(RegisterPair::HL, wrapping_add(hl, 1));
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x27: DAA
@@ -695,14 +695,14 @@ impl Gameboy {
 	fn jr_z_r8(&mut self) {
 		//1 cycle to read offset
 		let offset: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle if branch taken
 		if self.cpu.registers.f & cpu::ZERO_FLAG_MASK == cpu::ZERO_FLAG_MASK {
 			self.jr(offset);
 
 			//1 M-Cycle internal delay when branch taken
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 		}
 	}
 
@@ -720,12 +720,12 @@ impl Gameboy {
 	fn jr_nc_r8(&mut self) {
 		//1 cycle to read offset
 		let offset: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//jump if carry flag is not set
 		if (self.cpu.registers.f & cpu::CARRY_FLAG_MASK) == 0 {
 			//internal delay since branch taken
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 
 			self.jr(offset);
 		}
@@ -737,11 +737,11 @@ impl Gameboy {
 	fn ld_sp_d16(&mut self) {
 		//load low byte
 		let low: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//load high byte
 		let high: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//set sp
 		self.cpu.registers.sp = ((high as u16) << 8) | (low as u16);
@@ -755,7 +755,7 @@ impl Gameboy {
 		//read memory at (HL)
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		let val: u8 = self.read_byte_cpu(hl);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//Update registers
 		self.cpu.registers.a = val;
@@ -771,7 +771,7 @@ impl Gameboy {
 		let a: u8 = self.cpu.registers.a;	//I have to do this because write byte borrows the whole gbc struct as mut
 		self.write_byte_cpu(hl, a);
 		self.cpu.registers.set_register_pair(RegisterPair::HL, wrapping_sub(hl,1));
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x37: SCF (Set Carry Flag)
@@ -789,14 +789,14 @@ impl Gameboy {
 	fn jr_c_r8(&mut self) {
 		//1 cycle to read offset
 		let offset: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle if branch taken
 		if self.cpu.registers.f & cpu::CARRY_FLAG_MASK == cpu::CARRY_FLAG_MASK {
 			self.jr(offset);
 
 			//1 M-Cycle internal delay when branch taken
-			self.emulate_hardware();
+			self.emulate_hardware(4);
 		}
 	}
 
@@ -807,7 +807,7 @@ impl Gameboy {
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		self.cpu.registers.a = self.read_byte_cpu(hl);
 		self.cpu.registers.set_register_pair(RegisterPair::HL, wrapping_sub(hl, 1));
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x3F: CCF
@@ -835,7 +835,7 @@ impl Gameboy {
 		let val: u8 = self.get_register(reg);
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		self.write_byte_cpu(hl, val);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0x76: HALT
@@ -910,7 +910,7 @@ impl Gameboy {
 	///I think that the extra cycle compared to regular ret is to check the conditional
 	fn ret_nz(&mut self) {
 		//1 cycle to check conditional
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		if (self.cpu.registers.f & cpu::ZERO_FLAG_MASK) == 0 {
 			self._ret();
@@ -925,15 +925,15 @@ impl Gameboy {
 		//1 cycle to read low byte of address
 		let addr_low: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle to read high byte of address
 		let addr_high: u8 = self.read_byte_cpu(self.cpu.registers.pc);
 		self.cpu.registers.pc += 1;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle of internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//finally set pc? or does this happen before the last delay
 		self.cpu.registers.pc = ((addr_high as u16) << 8) | (addr_low as u16);
@@ -944,7 +944,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn add_d8(&mut self) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::add(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -955,7 +955,7 @@ impl Gameboy {
 	///I think that the extra cycle compared to regular ret is to check the conditional
 	fn ret_z(&mut self) {
 		//1 cycle to check conditional
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		if (self.cpu.registers.f & cpu::ZERO_FLAG_MASK) == cpu::ZERO_FLAG_MASK {
 			self._ret();
@@ -972,7 +972,7 @@ impl Gameboy {
 	///0xCB: Extended opcodes
 	fn extended(&mut self) {
 		let opcode: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let reg: Register = map_register(opcode & 0x7);
 		let val = self.get_register(reg);
@@ -1030,26 +1030,26 @@ impl Gameboy {
 	fn call_a16(&mut self) {
 		//read low byte of address
 		let low: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//read high byte of address
 		let high: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//TODO: replace this with self.push
 		//push internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//push high byte of pc onto stack
 		let sp: u16 = self.cpu.registers.sp;
 		let pc_high: u8 = (self.cpu.registers.pc >> 8) as u8;
 		self.write_byte_cpu(sp - 1, pc_high);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//push low byte of pc onto stack
 		let pc_low: u8 = (self.cpu.registers.pc & 0xFF) as u8;
 		self.write_byte_cpu(sp - 2, pc_low);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//sub 2 from sp because we pushed a word onto the stack
 		self.cpu.registers.sp -= 2;
@@ -1061,7 +1061,7 @@ impl Gameboy {
 	///2 M-Cycles
 	fn adc_a_d8(&mut self) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::adc(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -1072,7 +1072,7 @@ impl Gameboy {
 	///I think that the extra cycle compared to regular ret is to check the conditional
 	fn ret_nc(&mut self) {
 		//1 cycle to check conditional
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		if (self.cpu.registers.f & cpu::CARRY_FLAG_MASK) == 0 {
 			self._ret();
@@ -1083,7 +1083,7 @@ impl Gameboy {
 	///2 M-Cycles
 	fn sub_d8(&mut self) {
 		let imm = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::sub(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -1093,7 +1093,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn ret_c(&mut self) {
 		//1 cycle to check conditional
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		if(self.cpu.registers.f & cpu::CARRY_FLAG_MASK) == cpu::CARRY_FLAG_MASK  {
 			self._ret();
@@ -1112,7 +1112,7 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn sbc_a_d8(&mut self) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::sbc(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -1126,12 +1126,12 @@ impl Gameboy {
 		//Write to io port
 		//1 cycle to read a8
 		let a8: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle to load value of a into ff00 + a8
 		let a: u8 = self.cpu.registers.a;
 		self.write_byte_cpu(0xFF00 + (a8 as u16), a);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0xE2: LD (0xFF00 + C), A
@@ -1142,7 +1142,7 @@ impl Gameboy {
 		let addr: u16 = 0xFF00 + self.cpu.registers.c as u16;
 		let val: u8 = self.cpu.registers.a;
 		self.write_byte_cpu(addr, val);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0xE6: AND d8
@@ -1150,7 +1150,7 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn and_d8(&mut self) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::and(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -1160,12 +1160,12 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn add_sp_nn(&mut self) {
 		let nn: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//2 m-cycles delay
 		//TODO: check internal delay
-		self.emulate_hardware();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
+		self.emulate_hardware(4);
 
 		self.cpu.registers.sp = cpu::alu::add_sp_nn(self.cpu.registers.sp, nn, &mut self.cpu.registers.f);
 	}
@@ -1183,17 +1183,17 @@ impl Gameboy {
 	fn ld_at_a16_a(&mut self) {
 		//load low byte of address
 		let low: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//load high byte of address
 		let high: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//move contents of a to (a16)
 		let address: u16 = ((high as u16) << 8) | (low as u16);
 		let a: u8 = self.cpu.registers.a;
 		self.write_byte_cpu(address, a);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0xEE: XOR d8
@@ -1201,7 +1201,7 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn xor_d8(&mut self) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::xor(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -1216,12 +1216,12 @@ impl Gameboy {
 
 		//1 cycle to read address
 		let a8: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle to read from io port
 		let val: u8 = self.read_byte_cpu(0xFF00 + a8 as u16);
 		self.cpu.registers.a = val;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0xF1: POP AF
@@ -1241,7 +1241,7 @@ impl Gameboy {
 		//1 cycle to read from io port
 		let val: u8 = self.read_byte_cpu(0xFF00 + self.cpu.registers.c as u16);
 		self.cpu.registers.a = val;
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0xF3: DI
@@ -1258,7 +1258,7 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn or_d8(&mut self) {
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		self.cpu.registers.a = cpu::alu::or(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}
@@ -1268,10 +1268,10 @@ impl Gameboy {
 	///Length: 2 bytes
 	fn ld_hl_sp_plus_nn(&mut self) {
 		let nn: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		//1 cycle internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let hl: u16 = cpu::alu::add_sp_nn(self.cpu.registers.sp, nn, &mut self.cpu.registers.f);
 		self.cpu.registers.set_register_pair(RegisterPair::HL, hl);
@@ -1282,7 +1282,7 @@ impl Gameboy {
 	///Length: 1 byte
 	fn ld_sp_hl(&mut self) {
 		//internal delay
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let hl: u16 = self.cpu.registers.get_register_pair(RegisterPair::HL);
 		self.cpu.registers.sp = hl;
@@ -1293,14 +1293,14 @@ impl Gameboy {
 	///Length: 3 bytes
 	fn ld_a_at_a16(&mut self) {
 		let addr_low = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let addr_high = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		let address = ((addr_high as u16) << 8) | addr_low as u16;
 		self.cpu.registers.a = self.read_byte_cpu(address);
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 	}
 
 	///0xFB: EI
@@ -1316,7 +1316,7 @@ impl Gameboy {
 	fn cp_d8(&mut self) {
 		//1 cycle to read imm
 		let imm: u8 = self.read_next();
-		self.emulate_hardware();
+		self.emulate_hardware(4);
 
 		cpu::alu::cp(self.cpu.registers.a, imm, &mut self.cpu.registers.f);
 	}

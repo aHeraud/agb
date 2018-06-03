@@ -420,7 +420,7 @@ impl PPU for DmgPpu {
 			return;
 		}
 
-		self.clock += 4;
+		self.clock += 1;
 		match self.mode {
 			PpuMode::HBLANK => {
 				if self.clock > 228 {
@@ -491,8 +491,6 @@ impl PPU for DmgPpu {
 				}
 			},
 		};
-
-		//Write back io registers
 
 		//Check for coincidence interrupt
 		if self.lyc == self.line {
@@ -678,18 +676,6 @@ impl PPU for DmgPpu {
 				}
 			}
 		}
-
-		//TODO: draw window on top?
-		//let window_enabled = match lcdc & 32 {
-		//	0 => false,
-		//	_ => true,
-		//};
-		//let window_tile_map_address = match lcdc & 64 {
-		//	0 => 0x9800,
-		//	_ => 0x9C00,
-		//};
-		//let wx = io[0x4A];
-		//let wy = io[0x4B] + 7;
 
 		Bitmap {
 			width: COLS * TILE_WIDTH,

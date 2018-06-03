@@ -165,23 +165,27 @@ impl Gameboy {
 		}
 	}
 
-	///Called every 4 cycles
-	fn emulate_hardware(&mut self) {
+	/// Emulate a variable number of t cycles (usually 4 at a time)
+	fn emulate_hardware(&mut self, mut t_cycles: usize) {
 		use gameboy::cpu::interrupts::InterruptLine;
 
-		if self.oam_dma_active {
-			self.service_oam_dma();
+		while t_cycles > 0 {
+			if self.oam_dma_active {
+				self.service_oam_dma();
+			}
+
+			let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
+			self.timer.emulate_hardware(&mut interrupt_line);
+			self.ppu.emulate_hardware(&mut interrupt_line);
+
+			if self.oam_dma_active {
+				self.update_oam_dma_status();
+			}
+
+			self.cpu.cycle_counter += 1;
+
+			t_cycles -= 1;
 		}
-
-		let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
-		self.timer.emulate_hardware(&mut interrupt_line);
-		self.ppu.emulate_hardware(&mut interrupt_line);
-
-		if self.oam_dma_active {
-			self.update_oam_dma_status();
-		}
-
-		self.cpu.cycle_counter += 1;
 	}
 
 	fn request_interrupt(&mut self, req_int: Interrupt) {
@@ -237,8 +241,8 @@ impl Gameboy {
 				self.cpu.next_ime_state = false;
 
 				//2 cycle delay
-				self.emulate_hardware();
-				self.emulate_hardware();
+				self.emulate_hardware(4);
+				self.emulate_hardware(4);
 
 				//wake the processor
 				self.cpu.halt = false;
@@ -255,19 +259,19 @@ impl Gameboy {
 				//push pc onto stack
 				let high: u8 = (old_pc >> 8) as u8;
 				self.write_byte_cpu(sp - 1, high);
-				self.emulate_hardware();
+				self.emulate_hardware(4);
 
 				//push low byte of pc onto stack
 				let low: u8 = (old_pc & 0xFF) as u8;
 				self.write_byte_cpu(sp - 2, low);
-				self.emulate_hardware();
+				self.emulate_hardware(4);
 
 				//sub 2 from sp because we pushed a word onto the stack
 				self.cpu.registers.sp -= 2;
 
 				//jump to interrupt handler
 				self.cpu.registers.pc = new_pc;
-				self.emulate_hardware();	//1 cycle delay when setting pc
+				self.emulate_hardware(4);	//1 cycle delay when setting pc
 			}
 		}
 	}
