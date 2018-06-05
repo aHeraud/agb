@@ -170,13 +170,23 @@ impl VirtualCartridge {
 	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<VirtualCartridge, & 'static str> {
 		let cart_info: CartInfo = try!(CartInfo::new(&rom));
 
-		//TODO: expand ram if the ram file loaded is too small (and give a warning?)
-		//TODO: rom as well?
 		let ram = match ram {
-			Some(ram) => ram,
+			Some(ram) => {
+				if ram.len() < cart_info.ram_size {
+					// ram too small, expand it to the proper size
+					// TODO: warning message?
+					let mut vec = Vec::from(ram);
+					vec.resize(cart_info.ram_size, 0);
+					vec.into_boxed_slice()
+				}
+				else {
+					ram
+				}
+			},
 			None => {
 				//No ram supplied, allocate some.
-				let vec: Vec<u8> = Vec::with_capacity(cart_info.ram_size);
+				let mut vec: Vec<u8> = Vec::with_capacity(cart_info.ram_size);
+				vec.resize(cart_info.ram_size, 0);
 				vec.into_boxed_slice()
 			}
 		};

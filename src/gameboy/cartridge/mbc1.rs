@@ -50,7 +50,7 @@ impl MemoryBankController for MBC1 {
 		if self.mode == ModeSelect::Ram {
 			ram_bank |= self.ram_bank;
 		}
-		let address: usize = address as usize + (0x2000 * ram_bank as usize);
+		let address: usize = (address - 0xA000) as usize + (0x2000 * ram_bank as usize);
 		if address < ram_size {
 			return ram[address];
 		}
@@ -82,7 +82,7 @@ impl MemoryBankController for MBC1 {
 		if self.mode == ModeSelect::Ram {
 			ram_bank |= self.ram_bank;
 		}
-		let address: usize = address as usize + (0x2000 * ram_bank as usize);
+		let address: usize = (address - 0xA000) as usize + (0x2000 * ram_bank as usize);
 		if address < ram_size {
 			ram[address] = value;
 		}
