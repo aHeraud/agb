@@ -423,9 +423,7 @@ impl DebuggerInterface for Gameboy {
 		self.cpu.reset(mode);
 		self.timer.reset();
 		self.ppu.reset();
-		self.oam_dma_active = false;
-		self.oam_dma_start_address = 0;
-		self.oam_dma_current_cycle = 0;
+		self.oam_dma_state.reset();
 	}
 
 	fn dump_tiles(&self) -> Bitmap<u32> {
@@ -446,7 +444,7 @@ impl DebuggerInterface for Gameboy {
 		let sp = self.cpu.registers.sp;
 		let pc = self.cpu.registers.pc;
 		let stat: u8 = self.read_byte(0xFF41);
-		let stack: u16 = ((self.read_byte(self.cpu.registers.sp + 1) as u16) << 8) | (self.read_byte(self.cpu.registers.sp) as u16);
+		let stack: u16 = ((self.read_byte(self.cpu.registers.sp.wrapping_add(1)) as u16) << 8) | (self.read_byte(self.cpu.registers.sp) as u16);
 		let instructions = assembly::get_assembly(&(self.read_range(self.cpu.registers.pc, self.cpu.registers.pc + 3).unwrap()));
 
 		let zf = if f & 0x80 != 0 { "Z" } else { "-" };

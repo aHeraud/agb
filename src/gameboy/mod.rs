@@ -7,6 +7,7 @@ pub mod timer;
 pub mod joypad;
 pub mod debugger;
 pub mod assembly;
+mod oam_dma;
 mod util;
 
 use gameboy::mmu::Mmu;
@@ -20,6 +21,7 @@ use gameboy::cartridge::{Cartridge, VirtualCartridge};
 use gameboy::joypad::Joypad;
 use gameboy::debugger::{Debugger, DebuggerInterface};
 use gameboy::cpu::interrupts::Interrupt;
+use gameboy::oam_dma::{OamDmaState, OamDmaController};
 pub use gameboy::joypad::Key;
 
 const IO_SIZE: usize = 128;
@@ -42,9 +44,7 @@ pub struct Gameboy {
 	pub wram: Box<[u8]>,
 	pub mode: Mode,
 	pub debugger: Debugger,
-	pub oam_dma_active: bool,
-	pub oam_dma_start_address: u16,
-	pub oam_dma_current_cycle: u16,
+	pub oam_dma_state: OamDmaState
 }
 
 #[allow(dead_code)]
@@ -100,9 +100,7 @@ impl Gameboy {
 			wram: Box::new([0; WRAM_BANK_SIZE * WRAM_NUM_BANKS]),
 			mode: mode,
 			debugger: Debugger::new(),
-			oam_dma_active: false,
-			oam_dma_start_address: 0,
-			oam_dma_current_cycle: 0,
+			oam_dma_state: OamDmaState::new()
 		};
 		Ok(gameboy)
 	}
@@ -138,50 +136,15 @@ impl Gameboy {
 		}
 	}
 
-	fn start_oam_dma(&mut self, value: u8) {
-		self.oam_dma_active = true;
-		self.oam_dma_start_address = (value as u16) << 8;
-		self.oam_dma_current_cycle = 0;
-	}
-
-	fn service_oam_dma(&mut self) {
-		//according to https://github.com/Gekkio/mooneye-gb/blob/master/docs/accuracy.markdown
-		//oam dma is 162 m-cycles, with 2 m-cycles for startup/teardown
-		//since oam is 160 bytes (0x100), this means it transfers 1 byte/m-cycle.
-
-		if self.oam_dma_current_cycle > 0 && self.oam_dma_current_cycle < 161 {
-			let offset = self.oam_dma_current_cycle - 1;
-			let value: u8 = self.read_byte(self.oam_dma_start_address + offset);
-			self.ppu.write_byte_oam(0xFE00 + offset, value);
-		}
-	}
-
-	fn update_oam_dma_status(&mut self) {
-		if self.oam_dma_current_cycle < 161 {
-			self.oam_dma_current_cycle += 1;
-		}
-		else {
-			self.oam_dma_active = false;
-		}
-	}
-
 	/// Emulate a variable number of t cycles (usually 4 at a time)
 	fn emulate_hardware(&mut self, mut t_cycles: usize) {
 		use gameboy::cpu::interrupts::InterruptLine;
 
 		while t_cycles > 0 {
-			if self.oam_dma_active {
-				self.service_oam_dma();
-			}
-
+			self.service_oam_dma_transfer();
 			let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
 			self.timer.emulate_hardware(&mut interrupt_line);
 			self.ppu.emulate_hardware(&mut interrupt_line);
-
-			if self.oam_dma_active {
-				self.update_oam_dma_status();
-			}
-
 			self.cpu.cycle_counter += 1;
 
 			t_cycles -= 1;

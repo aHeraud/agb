@@ -41,7 +41,7 @@ impl Gameboy {
 			self.cpu.ime = self.cpu.next_ime_state;
 
 			let opcode: u8 = self.read_byte_cpu(self.cpu.registers.pc);
-			self.cpu.registers.pc += 1;
+			self.cpu.registers.pc = self.cpu.registers.pc.wrapping_add(1);
 			self.emulate_hardware(4);
 
 			match opcode {

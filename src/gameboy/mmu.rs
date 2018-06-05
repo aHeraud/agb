@@ -2,6 +2,30 @@ use gameboy::Gameboy;
 
 use gameboy::{WRAM_BANK_SIZE, WRAM_NUM_BANKS};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum MemoryRegion {
+	CartridgeRom, CartridgeRam, Vram, Wram, Oam, Unmapped, Io, Hram, Ier
+}
+
+impl MemoryRegion {
+	/// Map a physical address to a memory region and offset
+	pub fn map_address(address: u16) -> (MemoryRegion, u16) {
+		match address {
+			0x0000...0x7FFF => (MemoryRegion::CartridgeRom, address),
+			0x8000...0x9FFF => (MemoryRegion::Vram, address - 0x8000),
+			0xA000...0xBFFF => (MemoryRegion::CartridgeRam, address - 0xA000),
+			0xC000...0xDFFF => (MemoryRegion::Wram, address - 0xC000),
+			0xE000...0xFDFF => (MemoryRegion::Wram, address - 0xE000), //WRAM Mirror
+			0xFE00...0xFE9F => (MemoryRegion::Oam, address - 0xFE00),
+			0xFEA0...0xFEFF => (MemoryRegion::Unmapped, 0),
+			0xFF00...0xFF7F => (MemoryRegion::Io, address - 0xFF00),
+			0xFF80...0xFFFE => (MemoryRegion::Hram, address - 0xFF80),
+			0xFFFF => (MemoryRegion::Ier, 0),
+			_ => panic!("this will never happen")
+		}
+	}
+}
+
 trait MmuHelpers {
 	fn read_byte_wram(&self, address: u16) -> u8;
 	fn write_byte_wram(&mut self, address: u16, value: u8);
@@ -20,9 +44,6 @@ impl MmuHelpers for Gameboy {
 	}
 
 	fn write_byte_wram(&mut self, address: u16, value: u8) {
-		if self.oam_dma_active {
-			return;
-		}
 		let selected_wram_bank = 1;	//TODO: wram banks
 		match address {
 			0xC000...0xCFFF => self.wram[(address - 0xC000) as usize] = value,
@@ -45,7 +66,8 @@ impl MmuHelpers for Gameboy {
 			match address {
 				0xFF00 => self.joypad.read_joyp(),
 				0xFF0F => self.cpu.interrupt_flag.read(),
-				0xFF01...0xFF0E | 0xFF10...0xFF7F => self.io[(address - 0xFF00) as usize],
+				0xFF46 => self.oam_dma_state.read_ff46(),
+				0xFF01...0xFF0E | 0xFF10...0xFF45 | 0xFF47...0xFF7F => self.io[(address - 0xFF00) as usize],
 				_ => panic!("read_byte_io - invalid arguments, address must be in the range [0xFF00, 0xFF7F]."),
 			}
 		}
@@ -54,6 +76,7 @@ impl MmuHelpers for Gameboy {
 	fn write_byte_io(&mut self, address: u16, value: u8) {
 		use gameboy::ppu::PpuIoRegister;
 		use gameboy::timer::TimerRegister;
+		use gameboy::oam_dma::OamDmaController;
 
 		if let Some(register) = PpuIoRegister::map_address(address) {
 			self.ppu.write_io(register, value);
@@ -126,8 +149,7 @@ impl Mmu for Gameboy {
 	///for instance, vram and oam can't be read during certain ppu states.
 	///and the cpu can't read anything other than hram and iem during a dma transfer
 	fn read_byte_cpu(&self, address: u16) -> u8 {
-		if self.oam_dma_active && address < 0xFF80 {
-			//cpu can't access anything other than hram when oam dma is active
+		if self.oam_dma_state.should_block_cpu_access(address) {
 			return 0xFF;
 		}
 		match address {
@@ -145,8 +167,7 @@ impl Mmu for Gameboy {
 	}
 
 	fn write_byte_cpu(&mut self, address: u16, value: u8) {
-		if self.oam_dma_active && address < 0xFF80 {
-			//cpu can't access anything other than hram when oam dma is active
+		if self.oam_dma_state.should_block_cpu_access(address) {
 			return;
 		}
 		match address {
