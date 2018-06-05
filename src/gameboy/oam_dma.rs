@@ -113,7 +113,7 @@ impl OamDmaController for Gameboy {
 	fn service_oam_dma_transfer(&mut self) {
 		use gameboy::mmu::Mmu;
 		if !self.cpu.halt && self.oam_dma_state.active {
-			if self.oam_dma_state.current_cycle >= 4 {
+			if self.oam_dma_state.current_cycle >= 4 && self.oam_dma_state.current_cycle <= 644 {
 				if self.oam_dma_state.current_cycle % 4 == 0 {
 					//copy a byte
 					let src = self.oam_dma_state.start_address + self.oam_dma_state.current_offset;
@@ -125,7 +125,7 @@ impl OamDmaController for Gameboy {
 			}
 
 			self.oam_dma_state.current_cycle += 1;
-			if self.oam_dma_state.current_cycle >= 644 {
+			if self.oam_dma_state.current_cycle >= 648 {
 				self.oam_dma_state.active = false;
 			}
 		}
