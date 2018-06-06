@@ -25,15 +25,15 @@ impl MBC1 {
 }
 
 impl MemoryBankController for MBC1 {
-	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, address: u16) -> u8 {
-		let address: usize = match address {
-			0x0000...0x3FFF => address as usize,
+	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, offset: u16) -> u8 {
+		let address: usize = match offset {
+			0x0000...0x3FFF => offset as usize,
 			0x4000...0x7FFF => {
 				let mut rom_bank: u8 = self.rom_bank;
 				if self.mode == ModeSelect::Rom {
 					rom_bank |= self.ram_bank << 5;
 				}
-				(address - 0x4000) as usize + (0x4000 * rom_bank as usize)
+				(offset - 0x4000) as usize + (0x4000 * rom_bank as usize)
 			},
 			_ => panic!("Invalid parameters for read_byte_rom: address must be in the range 0x0000...0x7FFF"),
 		};
@@ -45,12 +45,12 @@ impl MemoryBankController for MBC1 {
 		}
 	}
 
-	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, address: u16) -> u8 {
+	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, offset: u16) -> u8 {
 		let mut ram_bank: u8 = 0;
 		if self.mode == ModeSelect::Ram {
 			ram_bank |= self.ram_bank;
 		}
-		let address: usize = (address - 0xA000) as usize + (0x2000 * ram_bank as usize);
+		let address: usize = offset as usize + (0x2000 * ram_bank as usize);
 		if address < ram_size {
 			return ram[address];
 		}
@@ -77,12 +77,12 @@ impl MemoryBankController for MBC1 {
 		};
 	}
 
-	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, address: u16, value: u8) {
+	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, offset: u16, value: u8) {
 		let mut ram_bank: u8 = 0;
 		if self.mode == ModeSelect::Ram {
 			ram_bank |= self.ram_bank;
 		}
-		let address: usize = (address - 0xA000) as usize + (0x2000 * ram_bank as usize);
+		let address: usize = offset as usize + (0x2000 * ram_bank as usize);
 		if address < ram_size {
 			ram[address] = value;
 		}

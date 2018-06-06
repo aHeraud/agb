@@ -62,17 +62,11 @@ impl CPU {
 		self.double_speed_mode = false;
 	}
 
-	pub fn read_byte_hram(&self, address: u16) -> u8 {
-		match address {
-			0xFF80...0xFFFE => self.hram[(address - 0xFF80) as usize],
-			_ => panic!("cpu::read_byte_hram: invalid arguments, address must be in the range [0xFF80, 0xFFFE]"),
-		}
+	pub fn read_byte_hram(&self, offset: u16) -> u8 {
+		self.hram[offset as usize]
 	}
 
-	pub fn write_byte_hram(&mut self, address: u16, value: u8) {
-		match address {
-			0xFF80...0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
-			_ => panic!("cpu::read_byte_hram: invalid arguments, address must be in the range [0xFF80, 0xFFFE]"),
-		};
+	pub fn write_byte_hram(&mut self, offset: u16, value: u8) {
+		self.hram[offset as usize] = value
 	}
 }

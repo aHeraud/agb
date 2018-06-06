@@ -504,63 +504,47 @@ impl PPU for DmgPpu {
 
 	///Read a byte from the vram as the cpu.
 	///When the ppu is in mode 3, the cpu can't access vram, so 0xFF is returned instead
-	fn read_byte_vram(&self, address: u16) -> u8 {
-		match address {
-			0x8000...0x9FFF => {
-				let mode: u8 = self.mode as u8;
-				if mode == 3 {
-					//Ppu is in mode 3 (transferring data to lcd driver)
-					//and the cpu can't access vram
-					return 0xFF;
-				}
-				else {
-					return self.vram[(address - 0x8000) as usize];
-				}
-			}
-			_ => panic!("ppu::read_byte_vram - invalid arguments, address must be in the range [0x8000, 0x9FFF]."),
+	fn read_byte_vram(&self, offset: u16) -> u8 {
+		assert!(offset as usize <= VRAM_BANK_SIZE);
+		let mode: u8 = self.mode as u8;
+		if mode == 3 {
+			//Ppu is in mode 3 (transferring data to lcd driver)
+			//and the cpu can't access vram
+			return 0xFF;
+		}
+		else {
+			return self.vram[offset as usize];
 		}
 	}
 
-	fn write_byte_vram(&mut self, address: u16, value: u8) {
-		match address {
-			0x8000...0x9FFF => {
-				let mode: u8 = self.mode as u8;
-				if mode != 3 {
-					//Not in mode 3, cpu can write to vram
-					self.vram[(address - 0x8000) as usize] = value;
-				}
-			}
-			_ => panic!("ppu::read_byte_vram - invalid arguments, address must be in the range [0x8000, 0x9FFF]."),
-		};
+	fn write_byte_vram(&mut self, offset: u16, value: u8) {
+		assert!(offset as usize <= VRAM_BANK_SIZE);
+		let mode: u8 = self.mode as u8;
+		if mode != 3 {
+			//Not in mode 3, cpu can write to vram
+			self.vram[offset as usize] = value;
+		}
 	}
 
 	//When the ppu is in mode 2 or 3,
-	fn read_byte_oam(&self, address: u16) -> u8 {
-		match address {
-			0xFE00...0xFE9F => {
-				let mode: u8 = self.mode as u8;
-				if mode > 1 {
-					//ppu is in mode 2 or 3, cpu can't access oam
-					return 0xFF;
-				}
-				else {
-					return self.oam[(address - 0xFE00) as usize];
-				}
-			}
-			_ => panic!("ppu::read_byte_oam - invalid arguments, address must be in the range [0xFE00, 0xFE9F]."),
+	fn read_byte_oam(&self, offset: u16) -> u8 {
+		assert!(offset as usize <= OAM_SIZE);
+		let mode: u8 = self.mode as u8;
+		if mode > 1 {
+			//ppu is in mode 2 or 3, cpu can't access oam
+			return 0xFF;
+		}
+		else {
+			return self.oam[offset as usize];
 		}
 	}
 
-	fn write_byte_oam(&mut self, address: u16, value: u8) {
-		match address {
-			0xFE00...0xFE9F => {
-				let mode: u8 = self.mode as u8;
-				if mode < 2 {
-					self.oam[(address - 0xFE00) as usize] = value;
-				}
-			}
-			_ => panic!("ppu::read_byte_oam - invalid arguments, address must be in the range [0xFE00, 0xFE9F]."),
-		};
+	fn write_byte_oam(&mut self, offset: u16, value: u8) {
+		assert!(offset as usize <= OAM_SIZE);
+		let mode: u8 = self.mode as u8;
+		if mode < 2 {
+			self.oam[offset as usize] = value;
+		}
 	}
 
 	fn get_framebuffer(&self) -> &[u32] {

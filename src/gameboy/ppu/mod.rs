@@ -88,16 +88,16 @@ pub trait PPU {
 	///Read a byte from the vram
 	///vram is unreadable during certain ppu modes, so 0xFF is returned instead
 	///this isn't meant to be used by the ppu itself, because it has direct access to the vram
-	fn read_byte_vram(&self, address: u16) -> u8;
+	fn read_byte_vram(&self, offset: u16) -> u8;
 
 	///Write a byte to the vram
-	fn write_byte_vram(&mut self, address: u16, value: u8);
+	fn write_byte_vram(&mut self, offset: u16, value: u8);
 
 	///Read a byte from the oam
-	fn read_byte_oam(&self, address: u16) -> u8;
+	fn read_byte_oam(&self, offset: u16) -> u8;
 
 	///Write a byte to the oam
-	fn write_byte_oam(&mut self, address: u16, value: u8);
+	fn write_byte_oam(&mut self, offset: u16, value: u8);
 
 	/// Read one of the ppu's memory mapped io registers
 	fn read_io(&self, reg: PpuIoRegister) -> u8;

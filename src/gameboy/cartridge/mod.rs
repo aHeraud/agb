@@ -39,11 +39,11 @@ pub struct CartInfo {
 }
 
 pub trait Cartridge {
-	fn read_byte_rom(&self, address: u16) -> u8;
-	fn read_byte_ram(&self, address: u16) -> u8;
+	fn read_byte_rom(&self, offset: u16) -> u8;
+	fn read_byte_ram(&self, offset: u16) -> u8;
 
-	fn write_byte_rom(&mut self, address: u16, value: u8);
-	fn write_byte_ram(&mut self, address: u16, value: u8);
+	fn write_byte_rom(&mut self, offset: u16, value: u8);
+	fn write_byte_ram(&mut self, offset: u16, value: u8);
 
 	fn get_cart_info(&self) -> &CartInfo;
 
@@ -58,11 +58,11 @@ pub trait Cartridge {
 }
 
 pub trait MemoryBankController {
-	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, address: u16) -> u8;
-	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, address: u16) -> u8;
+	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, offset: u16) -> u8;
+	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, offset: u16) -> u8;
 
-	fn write_byte_rom(&mut self, address: u16, value: u8);
-	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, adress: u16, value: u8);
+	fn write_byte_rom(&mut self, offset: u16, value: u8);
+	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, offset: u16, value: u8);
 
 	fn rom_bank(&self) -> usize;
 	fn ram_bank(&self) -> usize;
@@ -214,20 +214,20 @@ impl VirtualCartridge {
 }
 
 impl Cartridge for VirtualCartridge {
-	fn read_byte_rom(&self, address: u16) -> u8  {
-		self.mbc.read_byte_rom(&self.rom, self.cart_info.rom_size, address)
+	fn read_byte_rom(&self, offset: u16) -> u8 {
+		self.mbc.read_byte_rom(&self.rom, self.cart_info.rom_size, offset)
 	}
 
-	fn read_byte_ram(&self, address: u16) -> u8 {
-		self.mbc.read_byte_ram(&self.ram, self.cart_info.ram_size, address)
+	fn read_byte_ram(&self, offset: u16) -> u8 {
+		self.mbc.read_byte_ram(&self.ram, self.cart_info.ram_size, offset)
 	}
 
-	fn write_byte_rom(&mut self, address: u16, value: u8) {
-		self.mbc.write_byte_rom(address, value);
+	fn write_byte_rom(&mut self, offset: u16, value: u8) {
+		self.mbc.write_byte_rom(offset, value);
 	}
 
-	fn write_byte_ram(&mut self, address: u16, value: u8) {
-		self.mbc.write_byte_ram(&mut self.ram, self.cart_info.ram_size, address, value);
+	fn write_byte_ram(&mut self, offset: u16, value: u8) {
+		self.mbc.write_byte_ram(&mut self.ram, self.cart_info.ram_size, offset, value);
 	}
 
 	fn get_cart_info(&self) -> &CartInfo {
