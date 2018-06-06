@@ -1,6 +1,6 @@
 # agb
 
-A gameboy emulator written in rust.
+A GameBoy emulator written in rust.
 
 TODO:
 
@@ -16,7 +16,5 @@ TODO:
 BUGS:
 
     1. Pokemon Red
-        a. Intro sprites (Pf Oak, Gary) are black boxes
-        b. Sprites on edge of screen disappear
-        c. Some sprites are transparent when they shouldn't be (ex: characters in pf oaks lab)
-        d. Pokemon sprites in battle are black boxes
+        a. Sprites on edge of screen disappear
+        b. Some sprites are transparent when they shouldn't be (ex: characters in pf oaks lab)
