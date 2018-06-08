@@ -66,6 +66,8 @@ impl MmuHelpers for Gameboy {
 		else {
 			match offset {
 				0x00 => self.joypad.read_joyp(),
+				0x01 => self.serial.read_sb(),
+				0x02 => self.serial.read_sc(),
 				0x0F => self.cpu.interrupt_flag.read(),
 				0x46 => self.oam_dma_state.read_ff46(),
 				_ => self.io[offset as usize]
@@ -88,6 +90,8 @@ impl MmuHelpers for Gameboy {
 		else {
 			match offset {
 				0x00 => self.joypad.write_joyp(value),
+				0x01 => self.serial.write_sb(value),
+				0x02 => self.serial.write_sc(value),
 				0x0F => self.cpu.interrupt_flag.write(value),
 				0x46 => self.start_oam_dma(value),
 				_ => self.io[offset as usize] = value

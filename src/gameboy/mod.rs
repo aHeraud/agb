@@ -7,6 +7,7 @@ pub mod timer;
 pub mod joypad;
 pub mod debugger;
 pub mod assembly;
+mod serial;
 mod oam_dma;
 mod util;
 
@@ -22,6 +23,8 @@ use gameboy::joypad::Joypad;
 use gameboy::debugger::{Debugger, DebuggerInterface};
 use gameboy::cpu::interrupts::Interrupt;
 use gameboy::oam_dma::{OamDmaState, OamDmaController};
+use gameboy::serial::Serial;
+pub use gameboy::serial::SerialCallback;
 pub use gameboy::joypad::Key;
 
 const IO_SIZE: usize = 128;
@@ -38,6 +41,7 @@ pub struct Gameboy {
 	pub cpu: CPU,
 	pub timer: Timer,
 	pub ppu: Box<PPU>,
+	pub serial: Serial,
 	pub joypad: Joypad,
 	pub cart: Box<Cartridge>,
 	pub io: Box<[u8]>,
@@ -94,6 +98,7 @@ impl Gameboy {
 			cpu: CPU::new(),
 			timer: Timer::new(),
 			ppu: ppu,
+			serial: Serial::new(),
 			joypad: Joypad::new(),
 			cart: cart,
 			io: Box::new(io),
@@ -145,6 +150,7 @@ impl Gameboy {
 			let mut interrupt_line = InterruptLine::new(&mut self.cpu.interrupt_flag, &mut self.cpu.halt, &mut self.cpu.stop);
 			self.timer.emulate_hardware(&mut interrupt_line);
 			self.ppu.emulate_hardware(&mut interrupt_line);
+			self.serial.emulate_hardware(&mut interrupt_line);
 			self.cpu.cycle_counter += 1;
 
 			t_cycles -= 1;
@@ -271,5 +277,16 @@ impl Gameboy {
 	/* If for some reason you want to write directly to the framebuffer */
 	pub fn get_framebuffer_mut(&mut self) -> &mut[u32] {
 		self.ppu.get_framebuffer_mut()
+	}
+
+	/// Register a callback for serial transfer events.
+	/// Any existing serial callback will be replaced with the new one.
+	/// It will be called everytime the gameboy shifts a bit out when a serial transfer is active using the internal clock.
+	pub fn register_serial_callback(&mut self, sb: Box<SerialCallback>) {
+		self.serial.register_callback(sb);
+	}
+
+	pub fn remove_serial_callback(&mut self) {
+		self.serial.remove_callback();
 	}
 }

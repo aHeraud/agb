@@ -55,6 +55,10 @@ fn main() {
 			.long("pause")
 			.short("p")
 			.required(false))
+		.arg(Arg::with_name("print_serial")
+			.help("print data written to the serial port")
+			.long("print_serial")
+			.required(false))
 		.get_matches();
 
 	let rom = read_file(matches.value_of("rom").unwrap()).expect("Could not open rom file.");
@@ -90,6 +94,25 @@ fn main() {
 			main_handle.unpark();
 		}
 	});
+
+	if matches.occurrences_of("print_serial") > 0 {
+		let mut bits: Vec<bool> = Vec::with_capacity(8);
+		let callback = move |out_bit: bool| {
+			bits.push(out_bit);
+			if bits.len() >= 8 {
+				let mut n: u8 = 0;
+				for i in 0..7 {
+					if bits.pop().unwrap() {
+						n |= 1 << i;
+					}
+				}
+				print!("{}", n as char);
+				bits.clear();
+			}
+			false
+		};
+		gameboy.register_serial_callback(Box::new(callback));
+	}
 
 	//Keys
 	let mut keymap: HashMap<Keycode, agb_core::gameboy::Key> = HashMap::new();
