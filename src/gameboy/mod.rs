@@ -11,6 +11,8 @@ mod serial;
 mod oam_dma;
 mod util;
 
+use std::sync::mpsc::{channel, Sender, Receiver};
+
 use gameboy::mmu::Mmu;
 use gameboy::cpu::CPU;
 use gameboy::cpu::registers::Register;
@@ -24,7 +26,6 @@ use gameboy::debugger::{Debugger, DebuggerInterface};
 use gameboy::cpu::interrupts::Interrupt;
 use gameboy::oam_dma::{OamDmaState, OamDmaController};
 use gameboy::serial::Serial;
-pub use gameboy::serial::SerialCallback;
 pub use gameboy::joypad::Key;
 
 const IO_SIZE: usize = 128;
@@ -48,7 +49,7 @@ pub struct Gameboy {
 	pub wram: Box<[u8]>,
 	pub mode: Mode,
 	pub debugger: Debugger,
-	pub oam_dma_state: OamDmaState
+	pub oam_dma_state: OamDmaState,
 }
 
 #[allow(dead_code)]
@@ -105,7 +106,7 @@ impl Gameboy {
 			wram: Box::new([0; WRAM_BANK_SIZE * WRAM_NUM_BANKS]),
 			mode: mode,
 			debugger: Debugger::new(),
-			oam_dma_state: OamDmaState::new()
+			oam_dma_state: OamDmaState::new(),
 		};
 		Ok(gameboy)
 	}
@@ -279,14 +280,8 @@ impl Gameboy {
 		self.ppu.get_framebuffer_mut()
 	}
 
-	/// Register a callback for serial transfer events.
-	/// Any existing serial callback will be replaced with the new one.
-	/// It will be called everytime the gameboy shifts a bit out when a serial transfer is active using the internal clock.
-	pub fn register_serial_callback(&mut self, sb: Box<SerialCallback>) {
-		self.serial.register_callback(sb);
-	}
-
-	pub fn remove_serial_callback(&mut self) {
-		self.serial.remove_callback();
+	/// Create channels to handle async serial transfers.
+	pub fn create_serial_channels(&mut self) -> (Sender<u8>, Receiver<u8>) {
+		self.serial.create_channels()
 	}
 }

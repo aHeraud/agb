@@ -13,12 +13,13 @@ use std::time::Duration;
 use std::thread::sleep;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{stdin, Read, Error};
+use std::io::{stdin, stdout, Read, Write, Error};
 use std::path::Path;
 use std::num::ParseIntError;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::ops::DerefMut;
+use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr};
 
 use agb_core::gameboy::Gameboy;
 use agb_core::gameboy::debugger::DebuggerInterface;
@@ -58,6 +59,20 @@ fn main() {
 		.arg(Arg::with_name("print_serial")
 			.help("print data written to the serial port")
 			.long("print_serial")
+			.conflicts_with_all(&["listen", "connect"])
+			.required(false))
+		.arg(Arg::with_name("listen")
+			.help("listen for remote connections (for serial communication over tcp/ip)")
+			.long("listen")
+			.takes_value(true)
+			.value_name("PORT")
+			.conflicts_with("connect")
+			.required(false))
+		.arg(Arg::with_name("connect")
+			.help("provide to ip:port to connect to a remote host (for serial communication over tcp/ip")
+			.long("connect")
+			.takes_value(true)
+			.value_name("IP:PORT")
 			.required(false))
 		.get_matches();
 
@@ -82,6 +97,99 @@ fn main() {
 		});
 	}
 
+	if let Some(ref port_str) = matches.value_of("listen") {
+		// set up a tcp socket to accept incoming connections
+		if let Ok(port) = u16::from_str_radix(port_str, 10) {
+			let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127,0,0,1)), port);
+			let listener = TcpListener::bind(addr).unwrap();
+			let (local_sender, local_receiver) = gameboy.create_serial_channels();
+
+			println!("waiting for connection...");
+			let (mut stream, remote_addr) = listener.accept().unwrap();
+			println!("connected to {}", remote_addr);
+
+			stream.set_nonblocking(false).expect("failed to set tcp socket to nonblocking mode");
+			stream.set_nodelay(true).expect("failed to set tcp socket nodelay mode");
+
+			//create sender thread
+			{
+				let mut stream = stream.try_clone().unwrap();
+				thread::spawn(move || {
+					let mut buffer: [u8; 1] = [0;1];
+					loop {
+						let data = local_receiver.recv().unwrap();
+						buffer[0] = data;
+						if stream.write(&buffer[..]).is_err() {
+							return;
+						}
+					}
+				});
+			}
+
+			//create receiver thread
+			thread::spawn(move || {
+				let mut buffer: [u8; 1] = [0;1];
+				loop {
+					if stream.read(&mut buffer[..]).is_err() {
+						return;
+					}
+					local_sender.send(buffer[0]).unwrap();
+				}
+			});
+		}
+		else {
+			println!("Invalid port: port must be an integer in the range 0 to 65535.");
+			return;
+		}
+	}
+	else if let Some(ref addr) = matches.value_of("connect") {
+		let (local_sender, local_receiver) = gameboy.create_serial_channels();
+		let addr: SocketAddr = addr.parse().unwrap();
+		println!("attempting to connect...");
+		let mut stream = TcpStream::connect(addr).unwrap();
+		println!("connected!");
+
+		stream.set_nonblocking(false).expect("failed to set tcp socket to nonblocking mode");
+		stream.set_nodelay(true).expect("failed to set tcp socket nodelay mode");
+
+		//create sender thread
+		{
+			let mut stream = stream.try_clone().unwrap();
+			thread::spawn(move || {
+				let mut buffer: [u8; 1] = [0;1];
+				loop {
+					let data = local_receiver.recv().unwrap();
+					buffer[0] = data;
+					if stream.write(&buffer[..]).is_err() {
+						return;
+					}
+				}
+			});
+		}
+
+		//create receiver thread
+		thread::spawn(move || {
+			let mut buffer: [u8; 1] = [0;1];
+			loop {
+				if stream.read(&mut buffer[..]).is_err() {
+					return;
+				}
+				local_sender.send(buffer[0]).unwrap();
+			}
+		});
+	}
+	else if matches.occurrences_of("print_serial") > 0 {
+		let (sender, reciever) = gameboy.create_serial_channels();
+		thread::spawn(move || {
+			loop {
+				let data = reciever.recv().unwrap();
+				sender.send(0xFF).unwrap();
+				print!("{}", data as char);
+				stdout().flush().ok().expect("could not flush stdout");
+			}
+		});
+	}
+
 	//debugger text input
 	let (tx, rx) = sync_channel(0);
 	let main_handle = thread::current();
@@ -94,25 +202,6 @@ fn main() {
 			main_handle.unpark();
 		}
 	});
-
-	if matches.occurrences_of("print_serial") > 0 {
-		let mut bits: Vec<bool> = Vec::with_capacity(8);
-		let callback = move |out_bit: bool| {
-			bits.push(out_bit);
-			if bits.len() >= 8 {
-				let mut n: u8 = 0;
-				for i in 0..7 {
-					if bits.pop().unwrap() {
-						n |= 1 << i;
-					}
-				}
-				print!("{}", n as char);
-				bits.clear();
-			}
-			false
-		};
-		gameboy.register_serial_callback(Box::new(callback));
-	}
 
 	//Keys
 	let mut keymap: HashMap<Keycode, agb_core::gameboy::Key> = HashMap::new();

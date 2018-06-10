@@ -1,17 +1,19 @@
+use std::sync::mpsc::{Sender, Receiver, channel};
 use ::gameboy::cpu::interrupts::{InterruptLine, Interrupt};
 
-pub type SerialCallback = (FnMut(bool) -> bool) + Send;
+//pub type SerialCallback = (FnMut(u8) -> u8) + Send;
 
 pub struct Serial {
-	/// Callback that is called when a bit is shifted through the serial port using the internal clock.
-	/// If an external clock is used to drive the serial port, this callback function will not be called.
-	/// The parameter is the bit that was shifted out of the serial port.
-	/// The return value is the bit to be shifted in.
-	callback: Option<Box<SerialCallback>>,
+	// Callback that is called when a byte is shifted through the serial port using the internal clock.
+	// If an external clock is used to drive the serial port, this callback function will not be called.
+	// The parameter is the byte that was shifted out of the serial port.
+	// The return value is the byte to be shifted in.
+	// removed in favor of using channels to handle serial communication.
+	//callback: Option<Box<SerialCallback>>,
 
 	/// Serial Data register ($FF01).
 	/// When a transfer is active, the value in this register will be shifted out bit by bit, and on every
-	/// shift a new bit will also be shifted in from the other end.
+	/// shift a new bit will also be shifted in from the other end. (for performance reasons, the new data will only be loaded after all 8bits have been shifted out)
 	sb: u8,
 
 	/// Serial Control register ($FF02).
@@ -26,27 +28,36 @@ pub struct Serial {
 	///     1: Internal Clock
 	sc: u8,
 
-	/// Counts how many 4MHz cycles the current transfer has been active for.
-	transfer_cycle_counter: usize,
-
 	/// Counts how many 4MHz cycles since the last bit has been shifted out
 	current_bit_cycles: usize,
 
 	/// Counts how many bits have been shifted during the current transfer (0...8)
-	bits_shifted: u8
+	bits_shifted: u8,
+
+	/// Stores bits shifted out during the current transfer so they can all be sent at once.
+	data_out: u8,
+
+	channels: Option<(Sender<u8>, Receiver<u8>)>
 }
 
 impl Serial {
 	pub fn new() -> Serial {
 		Serial {
-			callback: None,
+			channels: None,
 			sb: 0xFF,
 			sc: 0,
-			transfer_cycle_counter: 0,
 			current_bit_cycles: 0,
-			bits_shifted: 0
+			bits_shifted: 0,
+			data_out: 0
 		}
+	}
 
+	pub fn reset(&mut self) {
+		self.sb = 0xFF;
+		self.sc = 0;
+		self.current_bit_cycles = 0;
+		self.bits_shifted = 0;
+		self.data_out = 0;
 	}
 
 	/// Read a byte from the serial data register ($FF01).
@@ -72,63 +83,91 @@ impl Serial {
 	pub fn write_sc(&mut self, value: u8) {
 		self.sc = value & 0x83;
 		if value & 0x80 == 0x80 {
-			self.transfer_cycle_counter = 0;
 			self.current_bit_cycles = 0;
 			self.bits_shifted = 0;
+			self.data_out = 0;
 		}
 	}
 
-	pub fn register_callback(&mut self, cb: Box<SerialCallback>) {
-		self.callback = Some(cb);
-	}
-
-	pub fn remove_callback(&mut self) {
-		self.callback = None;
-	}
-
-	/// Shift a bit in from the other end of the serial port, and returns the bit shifted out.
-	/// This is ignored if the current transfer is using the internal clock (it will still read the next bit to be shifted out).
-	/// TODO: if bit 7 of SC is cleared, does this still shift a bit in when external clock is selected. (assuming yes for now)
-	pub fn shift_bit_in(&mut self, bit: bool, interrupt_line: &mut InterruptLine) -> bool {
-		let out = self.sb & 0x80 == 0x80;
-
-		if self.sc & 1 == 0 {
-			self.sb = self.sb << 1;
-			self.sb |= bit as u8;
-			self.bits_shifted += 1;
-			// if bits_shifted >= 8 and bit 7 of sc is set an interrupt needs to be requested and bit 7 needs to be cleared.
-			if self.bits_shifted >= 8 && self.sc & 0x80 == 0x80 {
-				interrupt_line.request_interrupt(Interrupt::Serial);
-				self.sc &= 0x7F;
-				self.bits_shifted = 0;
-			}
-		}
-
-		out
+	/// Create channels to handle async serial transfers.
+	/// When the remote device wants to shift a byte over the serial port, send the byte using the sender, and then then a corresponding response will be sent to the reciever channel.
+	/// When the local device wants to shift a byte out during a transfer driven by the internal clock, it will send the byte and block until a byte is recieved in response.
+	/// If one of the channels returned by this function is dropped, then it is assumed that the external device has been disconnected.
+	pub fn create_channels(&mut self) -> (Sender<u8>, Receiver<u8>) {
+		let input: (Sender<u8>, Receiver<u8>) = channel();
+		let output: (Sender<u8>, Receiver<u8>) = channel();
+		let (input_send, input_recv) = input;
+		let (output_send, output_recv) = output;
+		self.channels = Some((output_send, input_recv));
+		(input_send, output_recv)
 	}
 
 	/// Emulate the serial port behaviour for 1 cycle.
 	/// TODO: different transfer speeds for CGB mode.
 	pub fn emulate_hardware(&mut self, interrupt_line: &mut InterruptLine) {
+		if let Some((ref mut sender, ref mut reciever)) = self.channels {
+			// handle externaly driven transfers
+			if let Ok(byte) = reciever.try_recv() {
+				if self.sc & 1 == 0 {
+					//externally driven transfer
+					let out = self.sb;
+					self.sb = byte;
+					self.bits_shifted += 8;
+					// if bits_shifted >= 8 and bit 7 of sc is set an interrupt needs to be requested and bit 7 needs to be cleared.
+					if self.sc & 0x80 == 0x80 {
+						interrupt_line.request_interrupt(Interrupt::Serial);
+						self.sc &= 0x7F;
+						self.bits_shifted = 0;
+					}
+					sender.send(out);
+				}
+				else {
+					//internally driven transfer -> ignore
+					let out = if self.sb & 0x80 == 0x80 {
+						0xFF
+					}
+					else {
+						0
+					};
+					sender.send(out);
+				}
+			}
+		}
 		if self.sc & 0x80 == 0x80 {
 			// transfer active
 			if self.sc & 1 == 1 {
 				//internal clock
 				if self.current_bit_cycles >= 64 {
 					//shift bit out
-					let out = self.sb & 0x80 == 0x80;
-					let in_bit: bool = if let Some(ref mut cb) = self.callback {
-						cb(out)
-					}
-					else {
-						true
-					};
-					self.sb = (self.sb << 1) | (in_bit as u8);
+					self.data_out |= self.sb & (0x80 >> (self.bits_shifted % 8));
 					self.current_bit_cycles = 0;
 					self.bits_shifted += 1;
 					if self.bits_shifted >= 8 {
+						// send data to connected device & get data back. (if anything is connected)
+						if let Some((ref mut sender, ref mut receiver)) = self.channels {
+							match sender.send(self.data_out) { //send byte out through channel
+								Ok(_) => {
+									match receiver.recv() { //block while waiting for response
+										Ok(byte) => self.sb = byte,
+										Err(_) => {
+											self.channels = None; /* assume disconnected */
+											self.sb = 0xFF;
+										}
+									};
+								},
+								Err(_) => { // assume disconnected
+									self.sb = 0xFF;
+									self.channels = None;
+								}
+							};
+						}
+						else {
+							self.sb = 0xFF; //if no serial device is connected load 0xFF
+						}
+
 						interrupt_line.request_interrupt(Interrupt::Serial);
 						self.sc &= 0x7F;
+						self.current_bit_cycles = 0;
 						self.bits_shifted = 0;
 					}
 				}
@@ -136,7 +175,6 @@ impl Serial {
 					self.current_bit_cycles += 1;
 				}
 			}
-			self.transfer_cycle_counter += 1;
 		}
 	}
 }

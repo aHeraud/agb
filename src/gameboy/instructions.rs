@@ -28,16 +28,10 @@ fn map_register(reg: u8) -> Register {
 
 impl Gameboy {
 	pub fn execute(&mut self) {
-		//use gameboy::debugger::DebuggerInterface;
-		//self.interrupt_service_routine();  //called seperately to let debugger see calls to interrupt vectors
-		//println!("{}", self.trace());
-		if  self.cpu.halt {
+		if self.cpu.halt {
 			self.emulate_hardware(4);
 		}
-
 		else {
-			//self.print_serial();
-
 			self.cpu.ime = self.cpu.next_ime_state;
 
 			let opcode: u8 = self.read_byte_cpu(self.cpu.registers.pc);
