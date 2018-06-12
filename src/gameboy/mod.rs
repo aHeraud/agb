@@ -11,7 +11,8 @@ mod serial;
 mod oam_dma;
 mod util;
 
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::time::Duration;
+use std::sync::mpsc::{Sender, Receiver};
 
 use gameboy::mmu::Mmu;
 use gameboy::cpu::CPU;
@@ -111,34 +112,26 @@ impl Gameboy {
 		Ok(gameboy)
 	}
 
-	pub fn step_frame(&mut self) {
-		//A complete frame occurs every ~70224 clock cycles (140448 in gbc double speed mode)
-		const FRAME_CLOCKS: usize = 70224;
-		let mut counter: usize = 0;
-
-		if self.debugger.enabled() {
-			while counter < FRAME_CLOCKS {
-				self.interrupt_service_routine();
+	pub fn emulate(&mut self, time: Duration) {
+		let clock_cycles = ((time.as_secs() * 4_194_304) + ((time.subsec_nanos() as u64 * 4_194_304) / 1_000_000_000)) as usize;
+		let mut counter = 0;
+		while counter < clock_cycles {
+			let start = self.cpu.cycle_counter;
+			self.interrupt_service_routine();
+			if self.debugger.enabled() {
 				if let Some(breakpoint) = self.breakpoint_lookahead() {
 					self.debugger.breakpoint_callback(breakpoint);
 					return;
 				}
 				self.execute();
-				match self.cpu.double_speed_mode {
-					true => counter += 2,
-					false => counter += 4,
-				};
 			}
-		}
-		else {
-			while counter < FRAME_CLOCKS {
-				self.interrupt_service_routine();
-				self.execute();
-				match self.cpu.double_speed_mode {
-					true => counter += 2,
-					false => counter += 4,
-				};
+			let end = self.cpu.cycle_counter;
+			counter += if self.cpu.double_speed_mode {
+				(end - start) / 2
 			}
+			else {
+				end - start
+			};
 		}
 	}
 

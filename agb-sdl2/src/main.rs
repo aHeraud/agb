@@ -299,7 +299,7 @@ fn main() {
 		}
 
 		if !*paused.borrow_mut() {
-			gameboy.step_frame();
+			gameboy.emulate(Duration::from_millis(1000 / 60));
 			draw(&mut gameboy);
 
 			//60hz
