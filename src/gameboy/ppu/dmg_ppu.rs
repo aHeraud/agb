@@ -1,6 +1,7 @@
 use std::num::Wrapping;
+use std::collections::vec_deque::VecDeque;
 
-use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister};
+use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, Palette, TileDataAddress, background_map_address, window_map_address, Sprite};
 use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 /* RGBA shades for dmg */
@@ -142,10 +143,6 @@ impl DmgPpu {
 			true => 0x9800,
 			false => 0x9C00,
 		};
-		let tile_data: usize = match lcdc & 16 == 0 {
-			true => 0x8800,
-			false => 0x8000,
-		};
 
 		for x in 0..160 {
 			let y_pos: u8;
@@ -154,8 +151,9 @@ impl DmgPpu {
 
 			if window_enabled && x >= wx {
 				//Use the window tilemap here
-				map_address = window_tile_map + ((((x as usize) - (wx as usize)) >> 3) + ((((self.line as usize) - (wy as usize)) >> 3) << 5));
+				//map_address = window_tile_map + ((((x as usize) - (wx as usize)) >> 3) + ((((self.line as usize) - (wy as usize)) >> 3) << 5));
 
+				map_address = window_map_address(window_tile_map, self.line as usize, x as usize, wx as usize, wy as usize);
 				//Window doesn't scroll
 				x_pos = x;
 				y_pos = self.line;
@@ -165,7 +163,8 @@ impl DmgPpu {
 				x_pos = (Wrapping(x) + Wrapping(x_scroll)).0;
 
 				//BG is enabled
-				map_address = bg_tile_map + (((x_pos as usize) >> 3) + (((y_pos as usize) >> 3) << 5));
+				//map_address = bg_tile_map + (((x_pos as usize) >> 3) + (((y_pos as usize) >> 3) << 5));
+				map_address = background_map_address(bg_tile_map, self.line as usize, x as usize, x_scroll as usize, y_scroll as usize);
 			}
 			else {
 				//Neither the background or window are enabled at this pixel
@@ -176,17 +175,10 @@ impl DmgPpu {
 				continue;
 			}
 
-			let mut tile_number: usize = self.vram[map_address - 0x8000] as usize;
-			if tile_data == 0x8800 {
-				//Convert from signed tile numbers into unsigned offset
-				//and then add 128, because tile 0 is now actualy tile 128 (skip first 0x800 bytes
-				//of tiles)
-				let signed_tile_number = self.vram[map_address - 0x8000] as i8;
-				tile_number = ((signed_tile_number as isize) + 256) as  usize;
-			}
-
 			//Read tile data
-			let tile_address: usize = 0x8000 + (tile_number * 16) + (((y_pos as usize) % 8) * 2);
+			let tile_number = self.vram[map_address - 0x8000];
+			let tile_data_select = TileDataAddress::from_lcdc(self.lcdc);
+			let tile_address = (tile_data_select.get_tile_address(tile_number as u8) + (((y_pos as u16) % 8) * 2)) as usize;
 			let tile_2: u8 = self.vram[tile_address - 0x8000];
 			let tile_1: u8 = self.vram[tile_address + 1 - 0x8000];
 
@@ -472,6 +464,7 @@ impl PPU for DmgPpu {
 			},
 			PpuMode::SEARCH_OAM => {
 				if self.clock > 76 {
+					//Mode => TRANSFER
 					self.clock = 0;
 					self.mode = PpuMode::TRANSFER_TO_LCD;
 				}

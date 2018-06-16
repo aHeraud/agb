@@ -32,6 +32,64 @@ pub enum PpuMode {
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
 
+/// Tile Addressing Modes
+/// Selected through LCDC Bit 4: 0 = 0x8800, 1 = 0x8000.
+/// Mode 0: Tile 0 is located at 0x8800, and tile numbers are interpreted as signed bytes (tiles 0x80-0xFF are located below 0x8800)
+/// Mode 1: Tile 0 is located at 0x8000, and tile numbers are interpreted as unsigned bytes.
+enum TileDataAddress {
+	TileData8800h, TileData8000h
+}
+
+impl TileDataAddress {
+	pub fn from_lcdc(lcdc: u8) -> TileDataAddress {
+		if lcdc & 16 == 0 {
+			TileDataAddress::TileData8800h
+		}
+		else {
+			TileDataAddress::TileData8000h
+		}
+	}
+
+	pub fn address(&self) -> u16 {
+		match self {
+			&TileDataAddress::TileData8000h => 0x8000,
+			&TileDataAddress::TileData8800h => 0x8800
+		}
+	}
+
+	pub fn get_tile_address(&self, tile_number: u8) -> u16 {
+		match self {
+			&TileDataAddress::TileData8000h => {
+				self.address() + ((tile_number as u16) * 16)
+			},
+			&TileDataAddress::TileData8800h => {
+				let offset = (tile_number as i8 as i16 + 128) as u16 * 16;
+				self.address() + offset
+			}
+		}
+	}
+}
+
+/// Get the background map address
+/// Arguments:
+///     bg_tile_map_base - which tile map is the bg using (0x9800 or 0x9C000)
+///     line - which lcd line is currently being drawn
+///     x - current pixel offset from the beginning of the scanline
+///     x_scroll - value of scx register
+///     y_scroll - value of scy register
+fn background_map_address(bg_tile_map_base: usize, line: usize, x: usize, x_scroll: usize, y_scroll: usize) -> usize {
+	use std::num::Wrapping;
+	let y_pos = (Wrapping(line) + Wrapping(y_scroll)).0;
+	let x_pos = (Wrapping(x) + Wrapping(x_scroll)).0;
+	let map_address = bg_tile_map_base + (x_pos >> 3) + ((y_pos >> 3) << 5);
+	map_address
+}
+
+fn window_map_address(window_tile_map_base: usize, line: usize, x: usize, wx: usize, wy: usize) -> usize {
+	let map_address = window_tile_map_base + (((x - wx) >> 3) + (((line - wy) >> 3) << 5));
+	map_address
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PpuIoRegister {
 	Lcdc, Stat, Scy, Scx, Ly, Lyc, Wy, Wx, Bgp, Obp0, Obp1, Bgpi, Bgpd, Obpi, Obpd, Vbk
@@ -82,6 +140,18 @@ impl PpuIoRegister {
 			_ => None
 		}
 	}
+}
+
+enum Palette {
+	Bgp, Obp0, Obp1
+}
+
+#[repr(packed)]
+struct Sprite {
+	y: u8, //ypos (minus 16)
+	x: u8, //xpos (minus 8)
+	tile_number: u8, //unsigned tile nubmer. sprite tiles are located in 0x8000 - 0x8FFF
+	attributes: u8
 }
 
 pub trait PPU {

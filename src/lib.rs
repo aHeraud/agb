@@ -18,10 +18,6 @@ pub fn init(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Box<Gameboy>, & 's
 	Ok(Box::new(gameboy))
 }
 
-pub fn step_frame(gameboy: &mut Gameboy) {
-	gameboy.step_frame();
-}
-
 pub fn get_framebuffer(gameboy: & Gameboy) -> &[u32] {
 	gameboy.get_framebuffer()
 }
