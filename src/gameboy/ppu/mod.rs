@@ -70,24 +70,17 @@ impl TileDataAddress {
 	}
 }
 
-/// Get the background map address
-/// Arguments:
-///     bg_tile_map_base - which tile map is the bg using (0x9800 or 0x9C000)
-///     line - which lcd line is currently being drawn
-///     x - current pixel offset from the beginning of the scanline
-///     x_scroll - value of scx register
-///     y_scroll - value of scy register
-fn background_map_address(bg_tile_map_base: usize, line: usize, x: usize, x_scroll: usize, y_scroll: usize) -> usize {
-	use std::num::Wrapping;
-	let y_pos = (Wrapping(line) + Wrapping(y_scroll)).0;
-	let x_pos = (Wrapping(x) + Wrapping(x_scroll)).0;
-	let map_address = bg_tile_map_base + (x_pos >> 3) + ((y_pos >> 3) << 5);
-	map_address
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Palette {
+	Bgp, Obp0, Obp1
 }
 
-fn window_map_address(window_tile_map_base: usize, line: usize, x: usize, wx: usize, wy: usize) -> usize {
-	let map_address = window_tile_map_base + (((x - wx) >> 3) + (((line - wy) >> 3) << 5));
-	map_address
+#[repr(packed)]
+struct Sprite {
+	y: u8, //ypos (minus 16)
+	x: u8, //xpos (minus 8)
+	tile_number: u8, //unsigned tile nubmer. sprite tiles are located in 0x8000 - 0x8FFF
+	attributes: u8
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -140,18 +133,6 @@ impl PpuIoRegister {
 			_ => None
 		}
 	}
-}
-
-enum Palette {
-	Bgp, Obp0, Obp1
-}
-
-#[repr(packed)]
-struct Sprite {
-	y: u8, //ypos (minus 16)
-	x: u8, //xpos (minus 8)
-	tile_number: u8, //unsigned tile nubmer. sprite tiles are located in 0x8000 - 0x8FFF
-	attributes: u8
 }
 
 pub trait PPU {

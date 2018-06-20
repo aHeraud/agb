@@ -1,7 +1,6 @@
 use std::num::Wrapping;
-use std::collections::vec_deque::VecDeque;
 
-use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, Palette, TileDataAddress, background_map_address, window_map_address, Sprite};
+use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, TileDataAddress, Sprite, Palette};
 use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 /* RGBA shades for dmg */
@@ -103,13 +102,13 @@ impl DmgPpu {
 
 	fn draw_scanline(&mut self) {
 		let mut background: [u8; WIDTH] = [0; WIDTH];	//Background/Window
-		let mut bg_sprites: [u8; WIDTH] = [0; WIDTH];	//Background sprites (layer 0, behind bg)
-		let mut fg_sprites: [u8; WIDTH] = [0; WIDTH];	//Foreground Sprites
+		let mut bg_sprites: [Option<(u8, Palette)>; WIDTH] = [None; WIDTH];	//Background sprites (layer 0, behind bg)
+		let mut fg_sprites: [Option<(u8, Palette)>; WIDTH] = [None; WIDTH];	//Foreground Sprites
 
 		let wx = (Wrapping(self.wx) - Wrapping(7)).0;	//Window X Position
 
-		self.draw_bg(&mut background, self.lcdc, self.scx, self.scy, wx, self.wy, self.bgp);
-		self.draw_sprites(&mut bg_sprites, &mut fg_sprites, self.lcdc, self.obp0 /* OBP0 */, self.obp1 /* OBP1 */);
+		self.draw_bg(&mut background, self.lcdc, self.scx, self.scy, wx, self.wy);
+		self.draw_sprites(&mut bg_sprites, &mut fg_sprites);
 
 		//combine all 3 layers and draw the entire scanline
 		for x in 0..WIDTH {
@@ -117,22 +116,35 @@ impl DmgPpu {
 			//Clear pixel
 			self.buffers[buffer_index] = self.shades[0];
 
-			//self.buffers[buffer_index] = self.shades[bg_sprites[x] as usize];
-			self.buffers[buffer_index] = self.shades[background[x] as usize];
+			let bg_shade_index = self.bgp >> (background[x] << 1) & 3;
+			self.buffers[buffer_index] = self.shades[bg_shade_index as usize];
 
-			if background[x] & 0x0F == 0 {
-				//self.buffers[buffer_index] = 0xFF;
-				self.buffers[buffer_index] = self.shades[bg_sprites[x] as usize];
+			if let Some((val, pal)) = bg_sprites[x] {
+				if background[x] == 0 {
+					let palette = match pal {
+						Palette::Obp0 => self.obp0,
+						_ => self.obp1
+					};
+					let shade_index = (palette >> (val << 1)) & 3;
+					self.buffers[buffer_index] = self.shades[shade_index as usize];
+				}
 			}
-
-			if fg_sprites[x] != 0 {
-				self.buffers[buffer_index] = self.shades[fg_sprites[x] as usize];
+			
+			if let Some((val, pal)) = fg_sprites[x] {
+				if val != 0 {
+					let palette = match pal {
+						Palette::Obp0 => self.obp0,
+						_ => self.obp1
+					};
+					let shade_index = (palette >> (val << 1)) & 3;
+					self.buffers[buffer_index] = self.shades[shade_index as usize];
+				}
 			}
 		}
 	}
 
 	///Returns an array of WIDTH u8's representing the shade number of each pixel of the background
-	fn draw_bg(&self, background: &mut[u8], lcdc: u8, x_scroll: u8, y_scroll: u8, wx: u8, wy: u8, bgp: u8) {
+	fn draw_bg(&self, background: &mut[u8], lcdc: u8, x_scroll: u8, y_scroll: u8, wx: u8, wy: u8) {
 		let window_enabled: bool = (lcdc & 32 == 32) && (wy <= self.line);
 		let background_enabled: bool = lcdc & 1 == 1;
 		let window_tile_map: usize = match lcdc & 64 == 0 {
@@ -143,7 +155,6 @@ impl DmgPpu {
 			true => 0x9800,
 			false => 0x9C00,
 		};
-
 		for x in 0..160 {
 			let y_pos: u8;
 			let x_pos: u8;
@@ -151,9 +162,8 @@ impl DmgPpu {
 
 			if window_enabled && x >= wx {
 				//Use the window tilemap here
-				//map_address = window_tile_map + ((((x as usize) - (wx as usize)) >> 3) + ((((self.line as usize) - (wy as usize)) >> 3) << 5));
+				map_address = window_tile_map + ((((x as usize) - (wx as usize)) >> 3) + ((((self.line as usize) - (wy as usize)) >> 3) << 5));
 
-				map_address = window_map_address(window_tile_map, self.line as usize, x as usize, wx as usize, wy as usize);
 				//Window doesn't scroll
 				x_pos = x;
 				y_pos = self.line;
@@ -163,8 +173,7 @@ impl DmgPpu {
 				x_pos = (Wrapping(x) + Wrapping(x_scroll)).0;
 
 				//BG is enabled
-				//map_address = bg_tile_map + (((x_pos as usize) >> 3) + (((y_pos as usize) >> 3) << 5));
-				map_address = background_map_address(bg_tile_map, self.line as usize, x as usize, x_scroll as usize, y_scroll as usize);
+				map_address = bg_tile_map + (((x_pos as usize) >> 3) + (((y_pos as usize) >> 3) << 5));
 			}
 			else {
 				//Neither the background or window are enabled at this pixel
@@ -184,34 +193,35 @@ impl DmgPpu {
 
 			//Get value for pixel (0..4)
 			let value: u8 = ((tile_1 >> (7 - (x_pos % 8)) << 1) & 2) | ((tile_2 >> (7 - (x_pos % 8))) & 1);
-			let shade_index: u8 = (bgp >> (value << 1)) & 3;
-
-			background[x as usize] = shade_index;
+			background[x as usize] = value;
 		}
 	}
 
 	#[allow(dead_code)]
-	fn draw_sprites(&self, layer0: &mut[u8], layer1: &mut[u8], lcdc: u8, obp0: u8, obp1: u8) {
+	fn draw_sprites(&self, layer0: &mut[Option<(u8, Palette)>], layer1: &mut[Option<(u8, Palette)>]) {
+		use std::mem::transmute_copy;
 		//TODO: sprite ordering / overlapping
 
-		if lcdc & 2 == 0 {
+		if self.lcdc & 2 == 0 {
 			//Sprites are disabled
 			return;
 		}
 
-		let height: u8 = match lcdc & 4 {
+		let height: u8 = match self.lcdc & 4 {
 			0 => 8,
 			_ => 16,
 		};
 
 		//There is an attribute table for 40 sprits in oam,
 		//each sprite attribute table entry is 4 bytes long
+		let sprites: &[Sprite] = unsafe {
+			transmute_copy(&self.oam)
+		};
+		
 		for i in 0..40 {
-			let offset: usize = (i as usize) * 4;
-			let sprite_y: u8 = (Wrapping(self.oam[offset]) - Wrapping(16)).0;
-			let sprite_x: u8 = (Wrapping(self.oam[offset + 1]) - Wrapping(8)).0;
-			let sprite_tile_number: u8 = self.oam[offset + 2];
-			let sprite_flags: u8 = self.oam[offset + 3];
+			let sprite = &sprites[i];
+			let sprite_y: u8 = (Wrapping(sprite.y) - Wrapping(16)).0;
+			let sprite_x: u8 = (Wrapping(sprite.x) - Wrapping(8)).0;
 
 			if sprite_y == 0 || sprite_y >= 160 || sprite_x == 0 || sprite_x >= 168 {
 				continue;	//Sprite is completely off screen
@@ -221,17 +231,17 @@ impl DmgPpu {
 			}
 
 			//BEGIN DRAW_SPRITE
-			let x_flip: bool = sprite_flags & 0x20 == 0x20;
-			let y_flip: bool = sprite_flags & 0x40 == 0x40;
+			let x_flip: bool = sprite.attributes & 0x20 == 0x20;
+			let y_flip: bool = sprite.attributes & 0x40 == 0x40;
 
-			let layer: u8 = ((!sprite_flags) & 128) >> 7;
+			let layer: u8 = ((!sprite.attributes) & 128) >> 7;
 
-			let mut tile_address: u16 = (sprite_tile_number as u16) * 16;
-			let lower_tile_address: u16 = ((sprite_tile_number as u16) | 1) * 16;
+			let mut tile_address: u16 = (sprite.tile_number as u16) * 16;
+			let lower_tile_address: u16 = ((sprite.tile_number as u16) | 1) * 16;
 
-			let palette: u8 = match sprite_flags & 0x10 {
-				0x10 => obp1,
-				_ => obp0,
+			let palette = match sprite.attributes & 0x10 {
+				0x10 => Palette::Obp1,
+				_ => Palette::Obp0,
 			};
 
 			let y: u8 = self.line - sprite_y;
@@ -263,15 +273,11 @@ impl DmgPpu {
 					false => ((data0 >> (7 - (x % 8)) << 1) & 2) | ((data1 >> (7 - (x % 8))) & 1),
 				};
 
-				let shade = (palette >> (value << 1)) & 3;
-
 				if layer == 0 {
-					layer0[(x + sprite_x) as usize] = shade;
+					layer0[(x + sprite_x) as usize] = Some((value, palette));
 				}
 				else {
-					if value != 0 {
-						layer1[(x + sprite_x) as usize] = shade;
-					}
+					layer1[(x + sprite_x) as usize] = Some((value, palette));
 				}
 			}
 			//END DRAW_SPRITE
@@ -464,7 +470,6 @@ impl PPU for DmgPpu {
 			},
 			PpuMode::SEARCH_OAM => {
 				if self.clock > 76 {
-					//Mode => TRANSFER
 					self.clock = 0;
 					self.mode = PpuMode::TRANSFER_TO_LCD;
 				}
