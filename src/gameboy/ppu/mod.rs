@@ -83,6 +83,16 @@ struct Sprite {
 	attributes: u8
 }
 
+impl Sprite {
+	pub fn y_pos(&self) -> isize {
+		(self.y as isize) - 16
+	}
+
+	pub fn x_pos(&self) -> isize {
+		(self.x as isize) - 8
+	}
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PpuIoRegister {
 	Lcdc, Stat, Scy, Scx, Ly, Lyc, Wy, Wx, Bgp, Obp0, Obp1, Bgpi, Bgpd, Obpi, Obpd, Vbk

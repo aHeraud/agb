@@ -129,7 +129,7 @@ impl DmgPpu {
 					self.buffers[buffer_index] = self.shades[shade_index as usize];
 				}
 			}
-			
+
 			if let Some((val, pal)) = fg_sprites[x] {
 				if val != 0 {
 					let palette = match pal {
@@ -201,32 +201,31 @@ impl DmgPpu {
 	fn draw_sprites(&self, layer0: &mut[Option<(u8, Palette)>], layer1: &mut[Option<(u8, Palette)>]) {
 		use std::mem::transmute_copy;
 		//TODO: sprite ordering / overlapping
-
 		if self.lcdc & 2 == 0 {
 			//Sprites are disabled
 			return;
 		}
 
-		let height: u8 = match self.lcdc & 4 {
+		let height: isize = match self.lcdc & 4 {
 			0 => 8,
 			_ => 16,
 		};
+
+		let line = self.line as isize;
 
 		//There is an attribute table for 40 sprits in oam,
 		//each sprite attribute table entry is 4 bytes long
 		let sprites: &[Sprite] = unsafe {
 			transmute_copy(&self.oam)
 		};
-		
+
 		for i in 0..40 {
 			let sprite = &sprites[i];
-			let sprite_y: u8 = (Wrapping(sprite.y) - Wrapping(16)).0;
-			let sprite_x: u8 = (Wrapping(sprite.x) - Wrapping(8)).0;
 
-			if sprite_y == 0 || sprite_y >= 160 || sprite_x == 0 || sprite_x >= 168 {
+			if sprite.y == 0 || sprite.y >= 160 || sprite.x == 0 || sprite.x >= 168 {
 				continue;	//Sprite is completely off screen
 			}
-			if sprite_y > self.line || sprite_y + height < self.line {
+			if sprite.y_pos() > line || sprite.y_pos() + height < line {
 				continue;	//Sprite doens't intersect current scanline
 			}
 
@@ -244,7 +243,7 @@ impl DmgPpu {
 				_ => Palette::Obp0,
 			};
 
-			let y: u8 = self.line - sprite_y;
+			let y = line - sprite.y_pos();
 			if y >= height {
 				continue;	//Sprite not on this line
 			}
@@ -263,7 +262,7 @@ impl DmgPpu {
 			};
 
 			for x in 0..8 {
-				if x + sprite_x >= 160 {
+				if x + sprite.x_pos() >= 160 || x + sprite.x_pos() < 0{
 					continue;	//This pixel is not on the screen
 				}
 
@@ -274,10 +273,10 @@ impl DmgPpu {
 				};
 
 				if layer == 0 {
-					layer0[(x + sprite_x) as usize] = Some((value, palette));
+					layer0[(x + sprite.x_pos()) as usize] = Some((value, palette));
 				}
 				else {
-					layer1[(x + sprite_x) as usize] = Some((value, palette));
+					layer1[(x + sprite.x_pos()) as usize] = Some((value, palette));
 				}
 			}
 			//END DRAW_SPRITE
