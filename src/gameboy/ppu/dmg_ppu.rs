@@ -1,6 +1,6 @@
 use std::num::Wrapping;
 
-use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, TileDataAddress, Sprite, Palette};
+use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, TileDataAddress, Sprite, SpritePalette, SpritePriority};
 use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 /* RGBA shades for dmg */
@@ -102,13 +102,12 @@ impl DmgPpu {
 
 	fn draw_scanline(&mut self) {
 		let mut background: [u8; WIDTH] = [0; WIDTH];	//Background/Window
-		let mut bg_sprites: [Option<(u8, Palette)>; WIDTH] = [None; WIDTH];	//Background sprites (layer 0, behind bg)
-		let mut fg_sprites: [Option<(u8, Palette)>; WIDTH] = [None; WIDTH];	//Foreground Sprites
+		let mut sprites: [Option<(u8, SpritePalette, SpritePriority)>; WIDTH] = [None; WIDTH];	//Sprites
 
 		let wx = (Wrapping(self.wx) - Wrapping(7)).0;	//Window X Position
 
 		self.draw_bg(&mut background, self.lcdc, self.scx, self.scy, wx, self.wy);
-		self.draw_sprites(&mut bg_sprites, &mut fg_sprites);
+		self.draw_sprites(&mut sprites);
 
 		//combine all 3 layers and draw the entire scanline
 		for x in 0..WIDTH {
@@ -119,24 +118,13 @@ impl DmgPpu {
 			let bg_shade_index = self.bgp >> (background[x] << 1) & 3;
 			self.buffers[buffer_index] = self.shades[bg_shade_index as usize];
 
-			if let Some((val, pal)) = bg_sprites[x] {
-				if background[x] == 0 {
-					let palette = match pal {
-						Palette::Obp0 => self.obp0,
-						_ => self.obp1
+			if let Some((value, palette, priority)) = sprites[x] {
+				if value !=0 && (priority == SpritePriority::AboveBG || background[x] == 0) {
+					let palette_data = match palette {
+						SpritePalette::Obp0 => self.obp0,
+						SpritePalette::Obp1 => self.obp1
 					};
-					let shade_index = (palette >> (val << 1)) & 3;
-					self.buffers[buffer_index] = self.shades[shade_index as usize];
-				}
-			}
-
-			if let Some((val, pal)) = fg_sprites[x] {
-				if val != 0 {
-					let palette = match pal {
-						Palette::Obp0 => self.obp0,
-						_ => self.obp1
-					};
-					let shade_index = (palette >> (val << 1)) & 3;
+					let shade_index = (palette_data >> (value << 1)) & 3;
 					self.buffers[buffer_index] = self.shades[shade_index as usize];
 				}
 			}
@@ -198,9 +186,7 @@ impl DmgPpu {
 	}
 
 	#[allow(dead_code)]
-	fn draw_sprites(&self, layer0: &mut[Option<(u8, Palette)>], layer1: &mut[Option<(u8, Palette)>]) {
-		use std::mem::transmute_copy;
-		//TODO: sprite ordering / overlapping
+	fn draw_sprites(&self, buffer: &mut[Option<(u8, SpritePalette, SpritePriority)>]) {
 		if self.lcdc & 2 == 0 {
 			//Sprites are disabled
 			return;
@@ -213,15 +199,31 @@ impl DmgPpu {
 
 		let line = self.line as isize;
 
-		//There is an attribute table for 40 sprits in oam,
-		//each sprite attribute table entry is 4 bytes long
-		let sprites: &[Sprite] = unsafe {
-			transmute_copy(&self.oam)
-		};
+		// There is an attribute table for 40 sprits in oam,
+		// each sprite attribute table entry is 4 bytes long
+		let mut sprites: Vec<Sprite> = self.oam.chunks(4).map(|data| {
+			Sprite {
+				y: data[0],
+				x: data[1],
+				tile_number: data[2],
+				attributes: data[3]
+			}
+		}).collect();
 
-		for i in 0..40 {
-			let sprite = &sprites[i];
+		// Remove sprites that don't appear on the current line
+		sprites.drain_filter(|sprite| {
+			sprite.y_pos() > line || sprite.y_pos() + height < line
+		});
 
+		// In DMG mode, sprites are prioritized based on x coordinate. (lowest x coordinate = highest priority)
+		sprites.sort_by_key(|sprite| sprite.x);
+
+		// Maximum of 10 sprites per line
+		sprites.truncate(10);
+
+		sprites.reverse();
+
+		for ref sprite in sprites.iter() {
 			if sprite.y == 0 || sprite.y >= 160 || sprite.x == 0 || sprite.x >= 168 {
 				continue;	//Sprite is completely off screen
 			}
@@ -230,18 +232,8 @@ impl DmgPpu {
 			}
 
 			//BEGIN DRAW_SPRITE
-			let x_flip: bool = sprite.attributes & 0x20 == 0x20;
-			let y_flip: bool = sprite.attributes & 0x40 == 0x40;
-
-			let layer: u8 = ((!sprite.attributes) & 128) >> 7;
-
 			let mut tile_address: u16 = (sprite.tile_number as u16) * 16;
 			let lower_tile_address: u16 = ((sprite.tile_number as u16) | 1) * 16;
-
-			let palette = match sprite.attributes & 0x10 {
-				0x10 => Palette::Obp1,
-				_ => Palette::Obp0,
-			};
 
 			let y = line - sprite.y_pos();
 			if y >= height {
@@ -252,11 +244,11 @@ impl DmgPpu {
 				tile_address = lower_tile_address;
 			}
 
-			let data0 = match y_flip {
+			let data0 = match sprite.y_flip() {
 				true => self.vram[(tile_address + 1 + ((((height - y) as u16) % 8) * 2)) as usize],
 				false => self.vram[(tile_address + 1 + (((y as u16) % 8) * 2)) as usize],
 			};
-			let data1: u8 = match y_flip {
+			let data1: u8 = match sprite.y_flip() {
 				true => self.vram[(tile_address + ((((height - y) as u16) % 8) * 2)) as usize],
 				false => self.vram[(tile_address + (((y as u16) % 8) * 2)) as usize],
 			};
@@ -267,17 +259,12 @@ impl DmgPpu {
 				}
 
 				//Draw sprite
-				let value: u8 = match x_flip {
+				let value: u8 = match sprite.x_flip() {
 					true => ((data0 >> (x % 8) << 1) & 2) | ((data1 >> (x % 8)) & 1),
 					false => ((data0 >> (7 - (x % 8)) << 1) & 2) | ((data1 >> (7 - (x % 8))) & 1),
 				};
 
-				if layer == 0 {
-					layer0[(x + sprite.x_pos()) as usize] = Some((value, palette));
-				}
-				else {
-					layer1[(x + sprite.x_pos()) as usize] = Some((value, palette));
-				}
+				buffer[(x + sprite.x_pos()) as usize] = Some((value, sprite.palette_dmg(), sprite.priority()));
 			}
 			//END DRAW_SPRITE
 		}

@@ -1,4 +1,5 @@
 #![feature(nll)]
+#![feature(drain_filter)]
 
 extern crate time;
 

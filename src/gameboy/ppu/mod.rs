@@ -71,10 +71,18 @@ impl TileDataAddress {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Palette {
-	Bgp, Obp0, Obp1
+enum SpritePalette {
+	Obp0, Obp1
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SpritePriority {
+	AboveBG = 0, BehindBG = 1
+}
+
+/// Represents a sprite in OAM.
+/// The sprite struct is 4 bytes long.
+#[derive(Clone, Copy)]
 #[repr(packed)]
 struct Sprite {
 	y: u8, //ypos (minus 16)
@@ -90,6 +98,48 @@ impl Sprite {
 
 	pub fn x_pos(&self) -> isize {
 		(self.x as isize) - 8
+	}
+
+	/// Should the sprite appear above or behind background value 1-3.
+	/// (BG value 0 is always transparent)
+	pub fn priority(&self) -> SpritePriority {
+		match self.attributes & 0x80 {
+			0 => SpritePriority::AboveBG,
+			_ => SpritePriority::BehindBG
+		}
+	}
+
+	/// Whether or not to vertically mirror the sprite.
+	pub fn y_flip(&self) -> bool {
+		self.attributes & 0x40 == 0x40
+	}
+
+	/// Whether or not to horizontally mirror the sprite.
+	pub fn x_flip(&self) -> bool {
+		self.attributes & 0x20 == 0x20
+	}
+
+	/// DMG MODE ONLY
+	/// Which pallete to use to color the sprite.
+	/// 0 = Obp0, 1 = Obp1
+	pub fn palette_dmg(&self) -> SpritePalette {
+		match self.attributes & 0x10 {
+			0 => SpritePalette::Obp0,
+			_ => SpritePalette::Obp1
+		}
+	}
+
+	/// CGB MODE ONLY
+	/// Which vram bank the tile data for the sprite is in. (0 or 1)
+	pub fn vram_bank(&self) -> u8 {
+		self.attributes & 8
+	}
+
+	/// CGB MODE ONLY
+	/// Which palette to use to color the sprite.
+	/// Obp0-Obp7
+	pub fn palette_number_cgb(&self) -> u8 {
+		self.attributes & 7
 	}
 }
 
