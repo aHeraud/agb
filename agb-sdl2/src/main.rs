@@ -16,8 +16,7 @@ use std::fs::File;
 use std::io::{stdin, stdout, Read, Write, Error};
 use std::path::Path;
 use std::num::ParseIntError;
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 use std::ops::DerefMut;
 use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr};
 
@@ -87,13 +86,14 @@ fn main() {
 	let start_paused: bool = matches.occurrences_of("paused") > 0;
 
 	let mut gameboy = agb_core::init(rom, ram).expect("Failed to initialize gameboy");
-	let paused: Rc<RefCell<bool>> = Rc::new(RefCell::new(start_paused));
+	let paused: Arc<Mutex<bool>> = Arc::new(Mutex::new(start_paused));
 	gameboy.debugger.enable();
 	{
 		let paused = paused.clone();
 		gameboy.register_breakpoint_callback(move |breakpoint| {
 			println!("triggered breakpoint access_type: {:?}, address: 0x{:x}", breakpoint.access_type, breakpoint.address);
-			*paused.borrow_mut() = true;
+			let mut paused = paused.lock().unwrap();
+			*paused = true;
 		});
 	}
 
@@ -257,8 +257,11 @@ fn main() {
 	'running: loop {
 		//wait for input from the debugger, but don't wait forever since
 		//we don't want the block the gui thread forever
-		if *paused.borrow_mut() {
-			std::thread::park_timeout(Duration::new(0, 100000000));
+		{
+			let paused = paused.lock().unwrap();
+			if *paused {
+				std::thread::park_timeout(Duration::new(0, 100000000));
+			}
 		}
 
 		let frame_start: u64 = timer_subsystem.performance_counter();
@@ -269,7 +272,8 @@ fn main() {
 				break 'running;
 			}
 			else {
-				debugger::debug(input, &mut gameboy, paused.borrow_mut().deref_mut());
+				let mut paused = paused.lock().unwrap();
+				debugger::debug(input, &mut gameboy, paused.deref_mut());
 			}
 		}
 
@@ -298,17 +302,20 @@ fn main() {
 			};
 		}
 
-		if !*paused.borrow_mut() {
-			gameboy.emulate(Duration::from_millis(1000 / 60));
-			draw(&mut gameboy);
+		{
+			let paused = paused.lock().unwrap();
+			if !*paused {
+				gameboy.emulate(Duration::from_millis(1000 / 60));
+				draw(&mut gameboy);
 
-			//60hz
-			let frame_end: u64 = timer_subsystem.performance_counter();
-			let frame_duration: u64 = frame_end - frame_start;
-			let ms: u64 = (frame_duration * 1000) / frequency;
-			if ms < 1000/60 {
-				let duration = Duration::from_millis((1000/60) - ms);
-				sleep(duration);
+				//60hz
+				let frame_end: u64 = timer_subsystem.performance_counter();
+				let frame_duration: u64 = frame_end - frame_start;
+				let ms: u64 = (frame_duration * 1000) / frequency;
+				if ms < 1000/60 {
+					let duration = Duration::from_millis((1000/60) - ms);
+					sleep(duration);
+				}
 			}
 		}
 	}
