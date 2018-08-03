@@ -442,6 +442,7 @@ impl PPU for DmgPpu {
 						let temp = self.front_buffer_index;
 						self.front_buffer_index = self.back_buffer_index;
 						self.back_buffer_index = temp;
+						self.frame_counter += 1;
 					}
 				}
 			},
