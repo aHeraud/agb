@@ -226,6 +226,9 @@ pub trait PPU : Send {
 	fn get_framebuffer(&self) -> &[u32];
 	fn get_framebuffer_mut(&mut self) -> &mut[u32];
 
+	/// The frame counter is an integer that is incremented each time a frame is drawn.
+	fn get_frame_counter(&self) -> usize;
+
 	//Debugger functions
 	fn get_vram(&self) -> &[u8];
 	fn get_vram_mut(&mut self) -> &mut[u8];

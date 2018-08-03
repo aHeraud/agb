@@ -24,6 +24,11 @@ impl PPU for CgbPpu {
 		//TODO
 	}
 
+	fn get_frame_counter(&self) -> usize {
+		//TODO
+		0
+	}
+
 	fn emulate_hardware(&mut self, _interrupt_line: &mut InterruptLine) {
 		//TODO
 	}

@@ -273,6 +273,10 @@ impl Gameboy {
 		self.ppu.get_framebuffer_mut()
 	}
 
+	pub fn get_frame_counter(&self) -> usize {
+		self.ppu.get_frame_counter()
+	}
+
 	/// Create channels to handle async serial transfers.
 	pub fn create_serial_channels(&mut self) -> (Sender<u8>, Receiver<u8>) {
 		self.serial.create_channels()

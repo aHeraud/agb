@@ -15,6 +15,7 @@ pub struct DmgPpu {
 	buffers: Box<[u32]>, //[u32; WIDTH * HEIGHT * NUM_BUFFERS],
 	front_buffer_index: usize,
 	back_buffer_index: usize,
+	frame_counter: usize,
 	pub shades: [u32; 4],
 	pub clock: u32,
 
@@ -75,6 +76,7 @@ impl DmgPpu {
 			buffers: Box::new([0; WIDTH * HEIGHT * NUM_BUFFERS]),
 			front_buffer_index: 1,
 			back_buffer_index: 0,
+			frame_counter: 0,
 			shades: DEFAULT_SHADES,
 			line: 0,
 			clock: 0,
@@ -325,10 +327,10 @@ impl PPU for DmgPpu {
 	fn reset(&mut self) {
 		self.front_buffer_index = 1;
 		self.back_buffer_index = 0;
+		self.frame_counter = 0;
 		self.mode = PpuMode::HBLANK;
 		self.line = 0;
 		self.clock = 0;
-
 		self.lcdc = 0x91;
 
 		/* LCD STAT */
@@ -347,6 +349,10 @@ impl PPU for DmgPpu {
 		self.bgp = 0xFC;
 		self.obp0 = 0xFF;
 		self.obp1 = 0xFF;
+	}
+
+	fn get_frame_counter(&self) -> usize {
+		self.frame_counter
 	}
 
 	fn read_io(&self, reg: PpuIoRegister) -> u8 {
