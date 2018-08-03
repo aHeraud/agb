@@ -125,6 +125,9 @@ impl Gameboy {
 				}
 				self.execute();
 			}
+			else {
+				self.execute();
+			}
 			let end = self.cpu.cycle_counter;
 			counter += if self.cpu.double_speed_mode {
 				(end - start) / 2
