@@ -57,7 +57,7 @@ pub trait Cartridge {
 	fn ram_mut(&mut self) -> &mut[u8];
 }
 
-pub trait MemoryBankController {
+pub trait MemoryBankController: Send {
 	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, offset: u16) -> u8;
 	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, offset: u16) -> u8;
 

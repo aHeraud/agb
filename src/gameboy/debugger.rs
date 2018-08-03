@@ -6,7 +6,7 @@ use gameboy::mmu::Mmu;
 use gameboy::assembly;
 use gameboy::ppu::Bitmap;
 
-type BreakpointCallback = FnMut(Breakpoint);
+type BreakpointCallback = FnMut(Breakpoint) + Send;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessType {
@@ -75,7 +75,7 @@ pub trait DebuggerInterface {
 	fn add_breakpoint(&mut self, breakpoint: Breakpoint);
 	fn remove_breakpoint(&mut self, index: usize) -> Result<Breakpoint,()>;
 	fn get_breakpoints(&self) -> Vec<Breakpoint>;
-	fn register_breakpoint_callback<CB>(&mut self, cb: CB) where CB: 'static + FnMut(Breakpoint);
+	fn register_breakpoint_callback<CB>(&mut self, cb: CB) where CB: 'static + FnMut(Breakpoint) + Send;
 	fn clear_breakpoint_callback(&mut self);
 	fn breakpoint_lookahead(&self) -> Option<Breakpoint>;
 
@@ -125,7 +125,7 @@ impl DebuggerInterface for Gameboy {
 	}
 
 	///register a callback to be called when a breakpoint is encountered
-	fn register_breakpoint_callback<CB>(&mut self, cb: CB) where CB: 'static + FnMut(Breakpoint) {
+	fn register_breakpoint_callback<CB>(&mut self, cb: CB) where CB: 'static + FnMut(Breakpoint) + Send {
 		self.debugger.breakpoint_callback = Some(Box::new(cb));
 	}
 

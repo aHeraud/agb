@@ -195,7 +195,7 @@ impl PpuIoRegister {
 	}
 }
 
-pub trait PPU {
+pub trait PPU : Send {
 	///Read a byte from the vram
 	///vram is unreadable during certain ppu modes, so 0xFF is returned instead
 	///this isn't meant to be used by the ppu itself, because it has direct access to the vram

@@ -42,10 +42,10 @@ pub enum Mode {
 pub struct Gameboy {
 	pub cpu: CPU,
 	pub timer: Timer,
-	pub ppu: Box<PPU>,
+	pub ppu: Box<PPU + Send>,
 	pub serial: Serial,
 	pub joypad: Joypad,
-	pub cart: Box<Cartridge>,
+	pub cart: Box<Cartridge + Send>,
 	pub io: Box<[u8]>,
 	pub wram: Box<[u8]>,
 	pub mode: Mode,
@@ -61,8 +61,8 @@ impl Gameboy {
 			true => Mode::CGB,
 			false => Mode::DMG,
 		};
-		let ppu: Box<PPU> = match mode {
-			_ => Box::new(DmgPpu::new()),
+		let ppu: Box<PPU + Send> = match mode {
+			_ => Box::new(DmgPpu::new()) as Box<PPU + Send>,
 		};
 
 		/* initialize io memory to what it should be at the end of the bootrom if
