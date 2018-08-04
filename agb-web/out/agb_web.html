@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+	<head>
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>agb-web</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.min.css" integrity="sha256-zIG416V1ynj3Wgju/scU80KAEWOsO5rRLfVyRDuOv7Q=" crossorigin="anonymous" />
+		<style type="text/css">
+			.canvas-container {
+				width: 640px;
+				height: 576px;
+				text-align: center;
+			}
+
+			#agb-canvas {
+				width: 100%;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="canvas-container" id="agb-canvas-container" tabindex="1">
+			<canvas id="agb-canvas" width="160" height="144"></canvas>
+		</div>
+		<input type="file" id="rom">Load ROM</input>
+		<script type="module" src='index.js'></script>
+	</body>
+</html>
