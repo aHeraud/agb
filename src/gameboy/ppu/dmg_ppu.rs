@@ -210,12 +210,10 @@ impl DmgPpu {
 				tile_number: data[2],
 				attributes: data[3]
 			}
-		}).collect();
-
-		// Remove sprites that don't appear on the current line
-		sprites.drain_filter(|sprite| {
+		}).filter(|sprite| {
+			// Remove sprites that don't appear on the current line
 			sprite.y_pos() > line || sprite.y_pos() + height < line
-		});
+		}).collect::<Vec<Sprite>>();
 
 		// In DMG mode, sprites are prioritized based on x coordinate. (lowest x coordinate = highest priority)
 		sprites.sort_by_key(|sprite| sprite.x);
