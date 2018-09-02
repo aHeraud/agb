@@ -99,6 +99,8 @@ pub trait DebuggerInterface {
 	fn reset(&mut self);
 
 	fn trace(&self) -> String;
+
+	fn get_cycle_counter(&self) -> usize;
 }
 
 impl DebuggerInterface for Gameboy {
@@ -454,5 +456,9 @@ impl DebuggerInterface for Gameboy {
 		let flags = format!("{}{}{}{}", zf, sf, hc, cf);
 
 		format!("A:{:02x} F:{} BC:{:04x} DE:{:04x} HL:{:04x} SP:{:04x} PC:{:04x} (cy: {}) DIV:{:04x} STAT:{:04x} Stack:{:04x}, Instruction: {}", a, flags, bc, de, hl, sp, pc, self.cpu.cycle_counter * 4, self.timer.get_div(), stat, stack, instructions[0])
+	}
+
+	fn get_cycle_counter(&self) -> usize {
+		self.cpu.cycle_counter
 	}
 }

@@ -1,0 +1,18 @@
+{
+	"rom_path": "tests/roms/mooneye-gb/acceptance/ret_timing.gb",
+	"sram_path": null,
+	"hardware_versions": ["DMG", "CGB"],
+	"duration": {
+		"Opcode": 64
+	},
+	"registers": {
+		"a": 0,
+		"b": 3,
+		"c": 5,
+		"d": 8,
+		"e": 13,
+		"h": 21,
+		"l": 34
+	},
+	"memory": []
+}
