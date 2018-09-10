@@ -85,7 +85,7 @@ fn main() {
 
 	let start_paused: bool = matches.occurrences_of("paused") > 0;
 
-	let mut gameboy = agb_core::init(rom, ram).expect("Failed to initialize gameboy");
+	let mut gameboy = Gameboy::new(rom, ram).expect("Failed to initialize gameboy");
 	let paused: Arc<Mutex<bool>> = Arc::new(Mutex::new(start_paused));
 	gameboy.debugger.enable();
 	{
@@ -240,7 +240,7 @@ fn main() {
 		let data: &mut[u8] = unsafe {
 			//#[allow(mutable_transmutes)]
 			//std::mem::transmute::<&[u32], &mut[u8]>(gbc.get_framebuffer())
-			let temp: &mut [u32] = agb_core::get_framebuffer_mut(gameboy);
+			let temp: &mut [u32] = gameboy.get_framebuffer_mut();
 			std::mem::transmute::<&mut[u32], &mut[u8]>(temp)
 		};
 
@@ -283,7 +283,7 @@ fn main() {
 					if keycode.is_some() {
 						let key = keymap.get(&keycode.unwrap());
 						if key.is_some() {
-							agb_core::keydown(&mut gameboy, *key.unwrap());
+							gameboy.keydown(*key.unwrap());
 						}
 					}
 				},
@@ -291,7 +291,7 @@ fn main() {
 					if keycode.is_some() {
 						let key = keymap.get(&keycode.unwrap());
 						if key.is_some() {
-							agb_core::keyup(&mut gameboy, *key.unwrap());
+							gameboy.keyup(*key.unwrap());
 						}
 					}
 				},
