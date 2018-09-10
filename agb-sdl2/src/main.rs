@@ -302,20 +302,20 @@ fn main() {
 			};
 		}
 
-		{
-			let paused = paused.lock().unwrap();
-			if !*paused {
-				gameboy.emulate(Duration::from_millis(1000 / 60));
-				draw(&mut gameboy);
+		let paused = {
+				*paused.lock().unwrap()
+		};
+		if !paused {
+			gameboy.emulate(Duration::from_millis(1000 / 60));
+			draw(&mut gameboy);
 
-				//60hz
-				let frame_end: u64 = timer_subsystem.performance_counter();
-				let frame_duration: u64 = frame_end - frame_start;
-				let ms: u64 = (frame_duration * 1000) / frequency;
-				if ms < 1000/60 {
-					let duration = Duration::from_millis((1000/60) - ms);
-					sleep(duration);
-				}
+			//60hz
+			let frame_end: u64 = timer_subsystem.performance_counter();
+			let frame_duration: u64 = frame_end - frame_start;
+			let ms: u64 = (frame_duration * 1000) / frequency;
+			if ms < 1000/60 {
+				let duration = Duration::from_millis((1000/60) - ms);
+				sleep(duration);
 			}
 		}
 	}
