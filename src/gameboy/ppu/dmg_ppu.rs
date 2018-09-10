@@ -203,16 +203,20 @@ impl DmgPpu {
 
 		// There is an attribute table for 40 sprits in oam,
 		// each sprite attribute table entry is 4 bytes long
-		let mut sprites: Vec<Sprite> = self.oam.chunks(4).map(|data| {
-			Sprite {
+		let mut sprites: Vec<Sprite> = self.oam.chunks(4).filter_map(|data| {
+			let sprite = Sprite {
 				y: data[0],
 				x: data[1],
 				tile_number: data[2],
 				attributes: data[3]
+			};
+
+			if sprite.y_pos() > line || sprite.y_pos() + height < line {
+				None
 			}
-		}).filter(|sprite| {
-			// Remove sprites that don't appear on the current line
-			sprite.y_pos() > line || sprite.y_pos() + height < line
+			else {
+				Some(sprite)
+			}
 		}).collect::<Vec<Sprite>>();
 
 		// In DMG mode, sprites are prioritized based on x coordinate. (lowest x coordinate = highest priority)
