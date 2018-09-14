@@ -119,7 +119,11 @@ impl Serial {
 						self.sc &= 0x7F;
 						self.bits_shifted = 0;
 					}
-					sender.send(out);
+
+					if let Err(_) = sender.send(out) {
+						// the channel on the other end was closed
+						self.channels = None;
+					}
 				}
 				else {
 					//internally driven transfer -> ignore
@@ -129,7 +133,11 @@ impl Serial {
 					else {
 						0
 					};
-					sender.send(out);
+
+					if let Err(_) = sender.send(out) {
+						// the channel on the other end was closed
+						self.channels = None;
+					}
 				}
 			}
 		}
