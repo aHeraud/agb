@@ -1,4 +1,5 @@
 use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
+use gameboy::Mode;
 
 const FREQ: [u16; 4] = [512, 8, 32, 128];
 
@@ -49,6 +50,8 @@ impl TimerRegister {
 ///             3: CPU Clock / 256
 #[derive(Clone)]
 pub struct Timer {
+	model: Mode,
+
 	/// Divider register (DIV) - incremented every cpu clock (4MHz)
 	/// the high 8-bits of DIV are mapped to memory at address 0xFF04.
 	/// Writing to DIV from the cpu causes it to reset.
@@ -77,8 +80,9 @@ pub struct Timer {
 }
 
 impl Timer {
-	pub fn new() -> Timer {
+	pub fn new(model: Mode) -> Timer {
 		Timer {
+			model: model,
 			div: 0,
 			tima: 0,
 			tma: 0,
@@ -105,6 +109,7 @@ impl Timer {
 	pub fn emulate_hardware(&mut self, interrupt_line: &mut InterruptLine) {
 		let old_div = self.div;
 		self.div = self.div.wrapping_add(1);
+
 		let freq = FREQ[(self.tac & 3) as usize];
 
 		if let Some(delay) = self.tima_overflow_delay {
@@ -160,7 +165,28 @@ impl Timer {
 			},
 			Tima => self.tima = value as u16,
 			Tma => self.tma = value,
-			Tac => self.tac = value
+			Tac => {
+				match self.model {
+					Mode::DMG => {
+						// On early models there is a bug that causes the timer to sometimes increment on writes to TAC.
+						// More specifically, if the value of tac.enable & (div & freq) goes from high to low as a result
+						// of the write to TAC, then the timer register is incremented.
+						// http://gbdev.gg8.se/wiki/articles/Timer_Obscure_Behaviour
+						let old: bool = (self.tac & 4 != 0) & (self.div & FREQ[(self.tac & 3) as usize] != 0);
+						let new: bool = (value & 4 != 0) & (self.div & FREQ[(value & 3) as usize] != 0);
+						if(old && !new) {
+							// falling edge increments clock
+							self.tima += 1;
+							if self.tima > 0xFF {
+								self.tima = 0;
+								self.tima_overflow_delay = Some(4);
+							}
+						}
+						self.tac = value;
+					}
+					Mode::CGB => self.tac = value
+				}
+			}
 		};
 	}
 }

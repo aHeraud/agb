@@ -98,7 +98,7 @@ impl Gameboy {
 
 		let gameboy = Gameboy {
 			cpu: CPU::new(),
-			timer: Timer::new(),
+			timer: Timer::new(mode),
 			ppu: ppu,
 			serial: Serial::new(),
 			joypad: Joypad::new(),
