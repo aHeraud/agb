@@ -1,0 +1,13 @@
+[package]
+name = "frontend"
+version = "0.1.0"
+authors = ["Atlas <achille@heraud.xyz>"]
+
+[dependencies]
+agb-core = { path = ".." }
+glutin = "0.17.0"
+glium = "0.22.0"
+imgui = "0.0.20"
+imgui-sys = "0.0.20"
+imgui-glium-renderer = "0.0.20"
+nfd = "0.0.4"
