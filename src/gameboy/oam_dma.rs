@@ -78,7 +78,7 @@ impl OamDmaState {
 	pub fn should_block_cpu_access(&self, address: u16) -> bool {
 		if let Some(src) = self.current_src_address() {
 			match address {
-				0...0x7FFF | 0xA000...0xFDFF | 0xFF00...0xFF7F => (src < 0x8000) || (src >= 0xA000 && src < 0xFE00) || (src >= 0xFF00 && src < 0xFF7F),
+				0...0x7FFF | 0xA000...0xFDFF => (src < 0x8000) || (src >= 0xA000 && src < 0xFE00), // external bus conflict
 				0x8000...0x9FFF => src >= 0x8000 && src < 0xA000, //vram conflict
 				0xFE00...0xFE9F => true, // oam dma is always writing to oam, so cpu can never access it (except during first M-Cycle of oam dma)
 				_ => false
