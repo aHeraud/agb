@@ -1,6 +1,7 @@
 use std::fmt;
 
 #[derive(Default, Copy, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct Registers {
 	pub a: u8,
 	pub f: u8,

@@ -16,6 +16,7 @@ fn get_index(key: Key) -> usize {
 	}
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Joypad {
 	keys: [bool; 8],
 	select_button_keys: bool,

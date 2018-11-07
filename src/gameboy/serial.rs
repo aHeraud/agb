@@ -3,6 +3,7 @@ use ::gameboy::cpu::interrupts::{InterruptLine, Interrupt};
 
 //pub type SerialCallback = (FnMut(u8) -> u8) + Send;
 
+#[derive(Serialize, Deserialize)]
 pub struct Serial {
 	// Callback that is called when a byte is shifted through the serial port using the internal clock.
 	// If an external clock is used to drive the serial port, this callback function will not be called.
@@ -37,6 +38,7 @@ pub struct Serial {
 	/// Stores bits shifted out during the current transfer so they can all be sent at once.
 	data_out: u8,
 
+	#[serde(skip)]
 	channels: Option<(Sender<u8>, Receiver<u8>)>
 }
 

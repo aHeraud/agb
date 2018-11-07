@@ -8,7 +8,7 @@ use super::{parse_u16, parse_u8, parse_usize};
 
 use image;
 
-pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool) {
+pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool, state: &mut Option<Vec<u8>>) {
 	let mut command = input.trim().split_whitespace();
 	if let Some(next) = command.next() {
 		match next {
@@ -32,6 +32,17 @@ pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool) {
 			"dump_bg" => dump_bg(&mut command, gameboy),
 			"reset" => {
 				gameboy.reset();
+			},
+			"save" => {
+				*state = Some(gameboy.save_state());
+			},
+			"load" => {
+				if let Some(state) = state {
+					gameboy.load_state(&state);
+				}
+				else {
+					println!("no state currently saved");
+				}
 			},
 			"help" => {
 				println!("available commands are:\n\

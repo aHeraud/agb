@@ -9,6 +9,7 @@ const DEFAULT_SHADES: [u32; 4] = [ 0xE0F8D0FF, 0x88C070FF, 0x346856FF, 0x081820F
 
 const NUM_BUFFERS: usize = 2;
 
+#[derive(Serialize, Deserialize)]
 pub struct DmgPpu {
 	pub vram: Box<[u8]>, //[u8; VRAM_BANK_SIZE * VRAM_NUM_BANKS_DMG],
 	pub oam: Box<[u8]>, //[u8; OAM_SIZE],

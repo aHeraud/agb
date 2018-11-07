@@ -97,6 +97,8 @@ fn main() {
 		});
 	}
 
+	let mut state: Option<Vec<u8>> = None;
+
 	if let Some(ref port_str) = matches.value_of("listen") {
 		// set up a tcp socket to accept incoming connections
 		if let Ok(port) = u16::from_str_radix(port_str, 10) {
@@ -273,7 +275,7 @@ fn main() {
 			}
 			else {
 				let mut paused = paused.lock().unwrap();
-				debugger::debug(input, &mut gameboy, paused.deref_mut());
+				debugger::debug(input, &mut gameboy, paused.deref_mut(), &mut state);
 			}
 		}
 

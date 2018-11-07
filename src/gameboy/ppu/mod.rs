@@ -25,6 +25,7 @@ pub struct Bitmap<T> {
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize)]
 pub enum PpuMode {
 	HBLANK = 0, VBLANK = 1, SEARCH_OAM = 2, TRANSFER_TO_LCD = 3
 }

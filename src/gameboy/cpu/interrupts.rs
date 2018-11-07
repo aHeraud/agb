@@ -43,6 +43,7 @@ impl Interrupt {
 
 /// Interrupt Flag Register - $FF0F
 #[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize)]
 pub struct InterruptFlag {
 	value: u8,
 }
@@ -77,6 +78,7 @@ impl InterruptFlag {
 }
 
 #[derive(Clone, Copy, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct InterruptEnable {
 	value: u8
 }

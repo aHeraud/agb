@@ -1,11 +1,12 @@
 use super::MemoryBankController;
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
 enum ModeSelect {
 	Rom, Ram
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct MBC1 {
 	ram_bank: u8,
 	rom_bank: u8,

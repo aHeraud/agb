@@ -10,18 +10,18 @@ pub mod assembly;
 mod serial;
 mod oam_dma;
 mod mode;
-mod savestates;
 mod util;
 
-use std::time::Duration;
 use std::sync::mpsc::{Sender, Receiver};
+use std::time::Duration;
+
+use bincode;
 
 use gameboy::mmu::Mmu;
 use gameboy::cpu::CPU;
 use gameboy::cpu::registers::Register;
 use gameboy::ppu::PPU;
 use gameboy::ppu::dmg_ppu::DmgPpu;
-//use gameboy::ppu::cgb_ppu::CgbPpu;
 use gameboy::timer::Timer;
 use gameboy::cartridge::{Cartridge, VirtualCartridge};
 use gameboy::joypad::Joypad;
@@ -37,16 +37,18 @@ const IO_SIZE: usize = 128;
 const WRAM_BANK_SIZE: usize = 4096;
 const WRAM_NUM_BANKS: usize = 8;
 
+#[derive(Serialize, Deserialize)]
 pub struct Gameboy {
 	pub cpu: CPU,
 	pub timer: Timer,
-	pub ppu: Box<PPU + Send>,
+	pub ppu: DmgPpu, //TODO: merge DmgPpu/CgbPpu structs
 	pub serial: Serial,
 	pub joypad: Joypad,
-	pub cart: Box<Cartridge + Send>,
+	pub cart: VirtualCartridge,
 	pub io: Box<[u8]>,
 	pub wram: Box<[u8]>,
 	pub mode: Mode,
+	#[serde(skip)]
 	pub debugger: Debugger,
 	pub oam_dma_state: OamDmaState,
 }
@@ -54,13 +56,10 @@ pub struct Gameboy {
 #[allow(dead_code)]
 impl Gameboy {
 	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Gameboy, & 'static str> {
-		let cart = Box::new(try!(VirtualCartridge::new(rom, ram)));
+		let cart = try!(VirtualCartridge::new(rom, ram));
 		let mode: Mode = match cart.get_cart_info().cgb {
 			true => Mode::CGB,
 			false => Mode::DMG,
-		};
-		let ppu: Box<PPU + Send> = match mode {
-			_ => Box::new(DmgPpu::new()) as Box<PPU + Send>,
 		};
 
 		/* initialize io memory to what it should be at the end of the bootrom if
@@ -97,7 +96,7 @@ impl Gameboy {
 		let gameboy = Gameboy {
 			cpu: CPU::new(),
 			timer: Timer::new(mode),
-			ppu: ppu,
+			ppu: DmgPpu::new(),
 			serial: Serial::new(),
 			joypad: Joypad::new(),
 			cart: cart,
@@ -281,5 +280,19 @@ impl Gameboy {
 	/// Create channels to handle async serial transfers.
 	pub fn create_serial_channels(&mut self) -> (Sender<u8>, Receiver<u8>) {
 		self.serial.create_channels()
+	}
+
+	// experimental save state api
+	pub fn save_state(&self) -> Vec<u8> {
+		use bincode::serialize;
+		serialize(self).unwrap()
+	}
+
+	// experimental save state api
+	pub fn load_state(&mut self, buf: &Vec<u8>) -> bincode::Result<()> {
+		use bincode::deserialize;
+		let state: Gameboy = deserialize(&buf[..])?;
+		*self = state;
+		Ok(())
 	}
 }
