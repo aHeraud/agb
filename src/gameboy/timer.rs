@@ -48,7 +48,7 @@ impl TimerRegister {
 ///             1: CPU Clock / 16
 ///             2: CPU Clock / 64
 ///             3: CPU Clock / 256
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Timer {
 	model: Mode,
 
@@ -188,5 +188,103 @@ impl Timer {
 				}
 			}
 		};
+	}
+}
+
+mod serialization {
+	use std::error::Error;
+	use std::fmt;
+	use std::fmt::{Display, Formatter};
+	use std::convert::TryFrom;
+
+	use gameboy::{Mode, InvalidModeDiscriminant};
+	use gameboy::savestates::SerializeState;
+
+	use super::Timer;
+
+	const TIMER_STATE_BUFFER_LENGTH: usize = 8;
+
+	#[derive(Debug, Clone, Copy)]
+	pub enum TimerDeserializationError {
+		InvalidMode(InvalidModeDiscriminant),
+		InvalidBufferLength(usize)
+	}
+
+	impl Display for TimerDeserializationError {
+		fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+			match self {
+				TimerDeserializationError::InvalidBufferLength(length) => {
+					write!(f, "Error deserializing timer state from buffer, expected buffer length of {}, found buffer of length {}", length, TIMER_STATE_BUFFER_LENGTH)
+				},
+				TimerDeserializationError::InvalidMode(_) => {
+					write!(f, "Error deserializing timer state from buffer, invalid mode value")
+				}
+			}
+		}
+	}
+
+	impl Error for TimerDeserializationError {
+		fn source(&self) -> Option<&(Error + 'static)> {
+			match self {
+				TimerDeserializationError::InvalidMode(e) => Some(e),
+				_ => None
+			}
+		}
+	}
+
+	impl SerializeState for Timer {
+		type Error = TimerDeserializationError;
+
+		fn serialize(&self) -> Vec<u8> {
+			let mut buf: Vec<u8> = Vec::with_capacity(TIMER_STATE_BUFFER_LENGTH);
+
+			buf.push(self.model as u8);
+			buf.extend_from_slice(&self.div.to_be_bytes());
+			buf.extend_from_slice(&self.tima.to_be_bytes());
+			buf.push(self.tma);
+			buf.push(self.tac);
+			match self.tima_overflow_delay {
+				Some(value) => buf.push(value as u8),
+				None => buf.push(0xFF)
+			};
+
+			buf
+		}
+
+		fn deserialize(buf: &[u8]) -> Result<Self, Self::Error> {
+			if buf.len() != TIMER_STATE_BUFFER_LENGTH {
+				return Err(TimerDeserializationError::InvalidBufferLength(buf.len()));
+			}
+			else {
+				let model = Mode::try_from(buf[0]).map_err(|e| TimerDeserializationError::InvalidMode(e))?;
+				let overflow_delay = match buf[7] {
+					0xFF => None,
+					_ => Some(buf[7] as i8)
+				};
+				Ok(Timer {
+					model: model,
+					div: ((buf[1] as u16) << 8) | (buf[2] as u16),
+					tima: ((buf[3] as u16) << 8) | (buf[4] as u16),
+					tma: buf[5],
+					tac: buf[6],
+					tima_overflow_delay: overflow_delay
+				})
+			}
+		}
+	}
+
+	#[cfg(test)]
+	mod test {
+		use super::*;
+		use ::gameboy::Mode;
+		use ::gameboy::savestates::SerializeState;
+
+		#[test]
+		pub fn serialize_deserialize_default() {
+			let timer = Timer::new(Mode::DMG);
+			let buf = timer.serialize();
+			let timer2 = Timer::deserialize(&buf[..]).unwrap();
+			assert_eq!(timer, timer2);
+		}
 	}
 }

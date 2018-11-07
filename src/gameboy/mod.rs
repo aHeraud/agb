@@ -9,6 +9,8 @@ pub mod debugger;
 pub mod assembly;
 mod serial;
 mod oam_dma;
+mod mode;
+mod savestates;
 mod util;
 
 use std::time::Duration;
@@ -28,16 +30,12 @@ use gameboy::cpu::interrupts::Interrupt;
 use gameboy::oam_dma::{OamDmaState, OamDmaController};
 use gameboy::serial::Serial;
 pub use gameboy::joypad::Key;
+pub use gameboy::mode::{Mode, InvalidModeDiscriminant};
 
 const IO_SIZE: usize = 128;
 
 const WRAM_BANK_SIZE: usize = 4096;
 const WRAM_NUM_BANKS: usize = 8;
-
-#[derive(Debug, Clone, Copy)]
-pub enum Mode {
-	DMG, CGB,
-}
 
 pub struct Gameboy {
 	pub cpu: CPU,

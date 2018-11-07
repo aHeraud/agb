@@ -1,4 +1,6 @@
 #![feature(nll)]
+#![feature(int_to_from_bytes)]
+#![feature(try_from)]
 
 extern crate time;
 
