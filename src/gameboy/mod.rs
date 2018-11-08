@@ -311,6 +311,9 @@ impl Gameboy {
 		// load rom from current state (rom is not included in save state to save space)
 		swap(&mut state.cart.rom, &mut self.cart.rom);
 
+		// preserve serial channel connection
+		swap(&mut state.serial.channels, &mut self.serial.channels);
+
 		*self = state;
 		Ok(())
 	}

@@ -38,8 +38,8 @@ pub struct Serial {
 	/// Stores bits shifted out during the current transfer so they can all be sent at once.
 	data_out: u8,
 
-	#[serde(skip)]
-	channels: Option<(Sender<u8>, Receiver<u8>)>
+	#[serde(skip)] // public so we can preserve the serial connection when a save state is loaded
+	pub channels: Option<(Sender<u8>, Receiver<u8>)>
 }
 
 impl Serial {
