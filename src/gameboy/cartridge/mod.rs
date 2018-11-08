@@ -224,7 +224,8 @@ impl MemoryBankController for MBC {
 
 #[derive(Serialize, Deserialize)]
 pub struct VirtualCartridge {
-	rom: Box<[u8]>,
+	#[serde(skip)] // don't serialize the rom, force the rom to already be loaded when the save state is loaded
+	pub rom: Box<[u8]>, // this needs to be public so it can be swapped to the new cart struct when a state is loaded
 	ram: Box<[u8]>,
 	cart_info: CartInfo,
 	mbc: MBC,

@@ -12,6 +12,8 @@ mod oam_dma;
 mod mode;
 mod util;
 
+use std::io;
+use std::io::BufRead;
 use std::sync::mpsc::{Sender, Receiver};
 use std::time::Duration;
 
@@ -283,15 +285,32 @@ impl Gameboy {
 	}
 
 	// experimental save state api
-	pub fn save_state(&self) -> Vec<u8> {
-		use bincode::serialize;
-		serialize(self).unwrap()
+	pub fn save_state(&self) -> io::Result<Vec<u8>> {
+		use bincode::serialize_into;
+		use flate2::write::DeflateEncoder;
+		use flate2::Compression;
+
+		let mut buf: Vec<u8> = Vec::new();
+		let mut encoder = DeflateEncoder::new(&mut buf, Compression::default());
+
+		serialize_into(&mut encoder, self).unwrap();
+		encoder.finish()?;
+
+		Ok(buf)
 	}
 
 	// experimental save state api
-	pub fn load_state(&mut self, buf: &Vec<u8>) -> bincode::Result<()> {
-		use bincode::deserialize;
-		let state: Gameboy = deserialize(&buf[..])?;
+	pub fn load_state<T: BufRead>(&mut self, buf: T) -> bincode::Result<()> {
+		use std::mem::swap;
+		use bincode::deserialize_from;
+		use flate2::bufread::DeflateDecoder;
+
+		let mut decoder = DeflateDecoder::new(buf);
+		let mut state: Gameboy = deserialize_from(&mut decoder)?;
+
+		// load rom from current state (rom is not included in save state to save space)
+		swap(&mut state.cart.rom, &mut self.cart.rom);
+
 		*self = state;
 		Ok(())
 	}

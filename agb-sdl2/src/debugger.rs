@@ -1,5 +1,6 @@
 use std::str::SplitWhitespace;
 use std::fs::File;
+use std::io::{Cursor, BufReader};
 
 use agb_core::gameboy::Gameboy;
 use agb_core::gameboy::assembly;
@@ -34,11 +35,13 @@ pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool, state: &mu
 				gameboy.reset();
 			},
 			"save" => {
-				*state = Some(gameboy.save_state());
+				*state = Some(gameboy.save_state().unwrap());
 			},
 			"load" => {
 				if let Some(state) = state {
-					gameboy.load_state(&state);
+					let cursor = Cursor::new(&state);
+					let mut reader = BufReader::new(cursor);
+					gameboy.load_state(&mut reader);
 				}
 				else {
 					println!("no state currently saved");

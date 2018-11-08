@@ -3,6 +3,7 @@
 #![feature(try_from)]
 
 extern crate time;
+extern crate flate2;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate bincode;
