@@ -12,7 +12,7 @@ mod oam_dma;
 mod mode;
 mod util;
 
-use std::io;
+use std::error::Error;
 use std::io::BufRead;
 use std::sync::mpsc::{Sender, Receiver};
 use std::time::Duration;
@@ -285,7 +285,7 @@ impl Gameboy {
 	}
 
 	// experimental save state api
-	pub fn save_state(&self) -> io::Result<Vec<u8>> {
+	pub fn save_state(&self) -> Result<Vec<u8>, Box<Error>> {
 		use bincode::serialize_into;
 		use flate2::write::DeflateEncoder;
 		use flate2::Compression;
@@ -293,7 +293,7 @@ impl Gameboy {
 		let mut buf: Vec<u8> = Vec::new();
 		let mut encoder = DeflateEncoder::new(&mut buf, Compression::default());
 
-		serialize_into(&mut encoder, self).unwrap();
+		serialize_into(&mut encoder, self)?;
 		encoder.finish()?;
 
 		Ok(buf)

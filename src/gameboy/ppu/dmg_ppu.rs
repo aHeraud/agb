@@ -1,21 +1,21 @@
 use std::num::Wrapping;
 
-use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, TileDataAddress, Sprite, SpritePalette, SpritePriority};
+use super::{PPU, VRAM_BANK_SIZE, VRAM_NUM_BANKS_DMG, OAM_SIZE, WIDTH, HEIGHT, PpuMode, Bitmap, PpuIoRegister, TileDataAddress, Sprite, SpritePalette, SpritePriority, framebuffer::FrameBuffer};
 use gameboy::cpu::interrupts::{Interrupt, InterruptLine};
 
 /* RGBA shades for dmg */
 #[allow(dead_code)]
 const DEFAULT_SHADES: [u32; 4] = [ 0xE0F8D0FF, 0x88C070FF, 0x346856FF, 0x081820FF ];
 
-const NUM_BUFFERS: usize = 2;
-
 #[derive(Serialize, Deserialize)]
 pub struct DmgPpu {
 	pub vram: Box<[u8]>, //[u8; VRAM_BANK_SIZE * VRAM_NUM_BANKS_DMG],
 	pub oam: Box<[u8]>, //[u8; OAM_SIZE],
-	buffers: Box<[u32]>, //[u32; WIDTH * HEIGHT * NUM_BUFFERS],
-	front_buffer_index: usize,
-	back_buffer_index: usize,
+	//#[serde(skip, default="create_framebuffer")] // don't actually need to serialize all of this, only the portion between the beginning of the frame and the current pixel being drawn
+	//buffers: Box<[u32]>, //[u32; WIDTH * HEIGHT * NUM_BUFFERS],
+	//front_buffer_index: usize,
+	//back_buffer_index: usize,
+	buffers: FrameBuffer<u32>,
 	frame_counter: usize,
 	pub shades: [u32; 4],
 	pub clock: u32,
@@ -74,9 +74,7 @@ impl DmgPpu {
 		DmgPpu {
 			vram: Box::new([0; VRAM_BANK_SIZE * VRAM_NUM_BANKS_DMG]),
 			oam: Box::new([0; OAM_SIZE]),
-			buffers: Box::new([0; WIDTH * HEIGHT * NUM_BUFFERS]),
-			front_buffer_index: 1,
-			back_buffer_index: 0,
+			buffers: FrameBuffer::new(WIDTH, HEIGHT),
 			frame_counter: 0,
 			shades: DEFAULT_SHADES,
 			line: 0,
@@ -114,12 +112,13 @@ impl DmgPpu {
 
 		//combine all 3 layers and draw the entire scanline
 		for x in 0..WIDTH {
-			let buffer_index: usize = (WIDTH * HEIGHT * self.back_buffer_index) + ((self.line as usize) * WIDTH) + (x as usize);
+			let buffer_index: usize = ((self.line as usize) * WIDTH) + (x as usize);
+
 			//Clear pixel
-			self.buffers[buffer_index] = self.shades[0];
+			let mut pixel = self.shades[0];
 
 			let bg_shade_index = self.bgp >> (background[x] << 1) & 3;
-			self.buffers[buffer_index] = self.shades[bg_shade_index as usize];
+			pixel = self.shades[bg_shade_index as usize];
 
 			if let Some((value, palette, priority)) = sprites[x] {
 				if value !=0 && (priority == SpritePriority::AboveBG || background[x] == 0) {
@@ -128,9 +127,11 @@ impl DmgPpu {
 						SpritePalette::Obp1 => self.obp1
 					};
 					let shade_index = (palette_data >> (value << 1)) & 3;
-					self.buffers[buffer_index] = self.shades[shade_index as usize];
+					pixel = self.shades[shade_index as usize];
 				}
 			}
+
+			self.buffers.set_pixel(buffer_index, pixel);
 		}
 	}
 
@@ -328,8 +329,8 @@ impl DmgPpu {
 
 impl PPU for DmgPpu {
 	fn reset(&mut self) {
-		self.front_buffer_index = 1;
-		self.back_buffer_index = 0;
+		//self.front_buffer_index = 1;
+		//self.back_buffer_index = 0;
 		self.frame_counter = 0;
 		self.mode = PpuMode::HBLANK;
 		self.line = 0;
@@ -442,9 +443,7 @@ impl PPU for DmgPpu {
 						}
 
 						//Swap buffers
-						let temp = self.front_buffer_index;
-						self.front_buffer_index = self.back_buffer_index;
-						self.back_buffer_index = temp;
+						self.buffers.swap_buffers();
 						self.frame_counter += 1;
 					}
 				}
@@ -542,17 +541,11 @@ impl PPU for DmgPpu {
 	}
 
 	fn get_framebuffer(&self) -> &[u32] {
-		let buffer_size: usize = WIDTH * HEIGHT;
-		let buffer_start: usize = buffer_size * self.front_buffer_index;
-		let buffer_end = buffer_start + buffer_size;
-		&self.buffers[buffer_start .. buffer_end]
+		self.buffers.get_front_buffer()
 	}
 
 	fn get_framebuffer_mut(&mut self) -> &mut[u32] {
-		let buffer_size: usize = WIDTH * HEIGHT;
-		let buffer_start: usize = buffer_size * self.front_buffer_index;
-		let buffer_end = buffer_start + buffer_size;
-		&mut self.buffers[buffer_start .. buffer_end]
+		self.buffers.get_front_buffer_mut()
 	}
 
 	fn get_vram(&self) -> &[u8] {

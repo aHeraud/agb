@@ -1,5 +1,6 @@
 use gameboy::cpu::interrupts::InterruptLine;
 
+mod framebuffer;
 pub mod dmg_ppu;
 pub mod cgb_ppu;
 
