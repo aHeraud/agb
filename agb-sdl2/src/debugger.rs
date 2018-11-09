@@ -35,13 +35,22 @@ pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool, state: &mu
 				gameboy.reset();
 			},
 			"save" => {
-				*state = Some(gameboy.save_state().unwrap());
+				match gameboy.save_state() {
+					Ok(s) => {
+						*state = Some(s);
+					},
+					Err(e) => {
+						println!("Error saving state: {}", e);
+					}
+				};
 			},
 			"load" => {
 				if let Some(state) = state {
 					let cursor = Cursor::new(&state);
 					let mut reader = BufReader::new(cursor);
-					gameboy.load_state(&mut reader);
+					if let Err(e) = gameboy.load_state(&mut reader) {
+						println!("Error loading save state: {}", e);
+					}
 				}
 				else {
 					println!("no state currently saved");
