@@ -114,11 +114,8 @@ impl DmgPpu {
 		for x in 0..WIDTH {
 			let buffer_index: usize = ((self.line as usize) * WIDTH) + (x as usize);
 
-			//Clear pixel
-			let mut pixel = self.shades[0];
-
 			let bg_shade_index = self.bgp >> (background[x] << 1) & 3;
-			pixel = self.shades[bg_shade_index as usize];
+			let mut pixel = self.shades[bg_shade_index as usize];
 
 			if let Some((value, palette, priority)) = sprites[x] {
 				if value !=0 && (priority == SpritePriority::AboveBG || background[x] == 0) {
