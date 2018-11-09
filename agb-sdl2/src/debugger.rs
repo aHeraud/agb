@@ -1,6 +1,5 @@
 use std::str::SplitWhitespace;
 use std::fs::File;
-use std::io::{Cursor, BufReader};
 
 use agb_core::gameboy::Gameboy;
 use agb_core::gameboy::assembly;
@@ -35,29 +34,15 @@ pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool, state: &mu
 				gameboy.reset();
 			},
 			"save" => {
-				match gameboy.save_state() {
-					Ok(s) => {
-						*state = Some(s);
-					},
-					Err(e) => {
-						println!("Error saving state: {}", e);
-					}
-				};
+				save_state(gameboy, &mut command, state);
 			},
 			"load" => {
-				if let Some(state) = state {
-					let cursor = Cursor::new(&state);
-					let mut reader = BufReader::new(cursor);
-					if let Err(e) = gameboy.load_state(&mut reader) {
-						println!("Error loading save state: {}", e);
-					}
-				}
-				else {
-					println!("no state currently saved");
-				}
+				load_state(gameboy, &mut command, state);
 			},
 			"help" => {
 				println!("available commands are:\n\
+				save <FILE>               - save the emulator state, if a filename is specified the state will be saved to the disk\n\
+				load <FILE>               - load a saved emulator state, if no filename is specified, the most recently saved state is loaded\n\
 				breakpoint add <type> <address>  - add a breakpoint at <address>, valid types are {{ execute, jump, read, write }}\n\
 				breakpoint list           - get a list of breakpoints\n\
 				breakpoint remove <index> - remove the breakpoint with index <index> (from list)\n\
@@ -70,7 +55,7 @@ pub fn debug(input: String, gameboy: &mut Gameboy, paused: &mut bool, state: &mu
 				assembly                  - print out the dissasembly of the current pc\n\
 				reset                     - reset the gameboy (keeps breakpoints and any rom/ram patches)\n\
 				dump_tiles <filename>     - dumps the tiles in vram as an image named <filename>.png (or tiles.png if no filename is provided)\n\
-				dump_bg <filename>        - dumps the background as an image to <filename>.png (or bg.png if no filename is provided)
+				dump_bg <filename>        - dumps the background as an image to <filename>.png (or bg.png if no filename is provided)\n\
 				quit | exit               - terminate the emulator");
 			},
 			_ => { println!("invalid command (try typing 'help')"); }
@@ -297,5 +282,61 @@ pub fn assembly(gameboy: &mut Gameboy) {
 			_ => { println!("{:04X}: {}", (offset + start) as u16, op); },
 		};
 		offset += assembly::INSTRUCTION_LENGTH[data[offset] as usize];
+	}
+}
+
+fn save_state(gameboy: &mut Gameboy, command: &mut SplitWhitespace, state: &mut Option<Vec<u8>>) {
+	use std::fs::File;
+	use std::io::Write;
+
+	match gameboy.save_state() {
+		Ok(s) => {
+			let filename: String = command.collect();
+			if filename.len() > 0 {
+				// save state to file
+				if let Err(e) = File::create(filename).and_then(|mut file| file.write(&s[..])) {
+					println!("Failed to save state to disk: {}", e);
+				}
+			}
+
+			*state = Some(s);
+		},
+		Err(e) => {
+			println!("Error saving state: {}", e);
+		}
+	};
+}
+
+fn load_state(gameboy: &mut Gameboy, command: &mut SplitWhitespace, state: &mut Option<Vec<u8>>) {
+	use std::fs::File;
+	use std::io::{Cursor, BufReader};
+
+	// TODO: verify the rom that is loaded matches the rom that the state was saved with
+
+	let filename: String = command.collect();
+	if filename.len() > 0 {
+		// load state from file
+		let file = match File::open(filename) {
+			Ok(f) => f,
+			Err(e) => {
+				println!("Failed to read state from file: {}", e);
+				return;
+			}
+		};
+		if let Err(e) = gameboy.load_state(BufReader::new(file)) {
+			println!("Failed to load state: {}", e);
+		}
+	}
+	else if let Some(s) = state {
+		// load last saved state
+		let mut cursor = Cursor::new(s);
+		let mut reader = BufReader::new(cursor);
+		if let Err(e) = gameboy.load_state(reader) {
+			println!("Failed to load state: {}", e);
+		}
+	}
+	else {
+		// there is no state to load
+		println!("no saved state to load");
 	}
 }
