@@ -18,7 +18,7 @@ const HRAM_SIZE: usize = 127;
 ///I assume this is because of instruction pipelining, and the next instruction has been fetched before
 ///interrupts have been enabled.
 ///On the CGB, the same applies to the DI instruction (but not on the DMG) allegedly
-
+#[derive(Serialize, Deserialize)]
 pub struct CPU {
 	pub registers: Registers,
 	pub ime: bool,
@@ -27,7 +27,7 @@ pub struct CPU {
 	pub interrupt_enable: InterruptEnable, //Interrupt Enable Register - $FFFF
 	pub stop: bool,
 	pub halt: bool,
-	pub hram: [u8; HRAM_SIZE],
+	pub hram: Box<[u8]>,
 	pub double_speed_mode: bool,
 	pub cycle_counter: usize,
 }
@@ -42,7 +42,7 @@ impl CPU {
 			interrupt_enable: InterruptEnable::new(),
 			stop: false,
 			halt: false,
-			hram: [0; HRAM_SIZE],
+			hram: Box::new([0; HRAM_SIZE]),
 			double_speed_mode: false,
 			cycle_counter: 0
 		}

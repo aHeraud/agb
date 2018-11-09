@@ -10,6 +10,7 @@ pub const ROM_BANK_SIZE: usize = 0x4000;
 pub const RAM_BANK_SIZE: usize = 0x2000;
 
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub enum MBCType {
 	NONE,
 	MBC1,
@@ -27,6 +28,7 @@ pub enum MBCType {
 }
 
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CartInfo {
 	pub title: String,
 	pub sgb: bool,
@@ -159,11 +161,74 @@ impl CartInfo {
 	}
 }
 
+/// An enum containing a variant for each possible MBC implementation.
+/// This exists so we can easily serialize/deserialize the mbc state, which is much more
+/// difficult when the mbc exists as a trait object.
+/// TODO: get rid of this when it becomes possible to easily serialize + deserialize trait objects with serde.
+#[derive(Serialize, Deserialize)]
+enum MBC {
+	NoMBC(Box<NoMBC>),
+	Mbc1(Box<MBC1>),
+	Mbc3(Box<MBC3>)
+}
+
+impl MemoryBankController for MBC {
+	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, offset: u16) -> u8 {
+		match self {
+			MBC::NoMBC(mbc) => mbc.read_byte_rom(rom, rom_size, offset),
+			MBC::Mbc1(mbc) => mbc.read_byte_rom(rom, rom_size, offset),
+			MBC::Mbc3(mbc) => mbc.read_byte_rom(rom, rom_size, offset)
+		}
+	}
+
+	fn read_byte_ram(&self, ram: &Box<[u8]>, ram_size: usize, offset: u16) -> u8 {
+		match self {
+			MBC::NoMBC(mbc) => mbc.read_byte_ram(ram, ram_size, offset),
+			MBC::Mbc1(mbc) => mbc.read_byte_ram(ram, ram_size, offset),
+			MBC::Mbc3(mbc) => mbc.read_byte_ram(ram, ram_size, offset)
+		}
+	}
+
+	fn write_byte_rom(&mut self, offset: u16, value: u8) {
+		match self {
+			MBC::NoMBC(mbc) => mbc.write_byte_rom(offset, value),
+			MBC::Mbc1(mbc) => mbc.write_byte_rom(offset, value),
+			MBC::Mbc3(mbc) => mbc.write_byte_rom(offset, value)
+		}
+	}
+
+	fn write_byte_ram(&mut self, ram: &mut Box<[u8]>, ram_size: usize, offset: u16, value: u8) {
+		match self {
+			MBC::NoMBC(mbc) => mbc.write_byte_ram(ram, ram_size, offset, value),
+			MBC::Mbc1(mbc) => mbc.write_byte_ram(ram, ram_size, offset, value),
+			MBC::Mbc3(mbc) => mbc.write_byte_ram(ram, ram_size, offset, value)
+		}
+	}
+
+	fn rom_bank(&self) -> usize {
+		match self {
+			MBC::NoMBC(mbc) => mbc.rom_bank(),
+			MBC::Mbc1(mbc) => mbc.rom_bank(),
+			MBC::Mbc3(mbc) => mbc.rom_bank()
+		}
+	}
+
+	fn ram_bank(&self) -> usize {
+		match self {
+			MBC::NoMBC(mbc) => mbc.ram_bank(),
+			MBC::Mbc1(mbc) => mbc.ram_bank(),
+			MBC::Mbc3(mbc) => mbc.ram_bank()
+		}
+	}
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct VirtualCartridge {
-	rom: Box<[u8]>,
+	#[serde(skip)] // don't serialize the rom, force the rom to already be loaded when the save state is loaded
+	pub rom: Box<[u8]>, // this needs to be public so it can be swapped to the new cart struct when a state is loaded
 	ram: Box<[u8]>,
 	cart_info: CartInfo,
-	mbc: Box<MemoryBankController>,
+	mbc: MBC,
 }
 
 impl VirtualCartridge {
@@ -191,10 +256,10 @@ impl VirtualCartridge {
 			}
 		};
 
-		let mbc: Result<Box<MemoryBankController>, & 'static str> = match cart_info.mbc_type {
-			MBCType::NONE => Ok(Box::new(NoMBC::new())),
-			MBCType::MBC1 => Ok(Box::new(MBC1::new())),
-			MBCType::MBC3 => Ok(Box::new(MBC3::new(cart_info.rtc))),
+		let mbc: Result<MBC, & 'static str> = match cart_info.mbc_type {
+			MBCType::NONE => Ok(MBC::NoMBC(Box::new(NoMBC::new()))),
+			MBCType::MBC1 => Ok(MBC::Mbc1(Box::new(MBC1::new()))),
+			MBCType::MBC3 => Ok(MBC::Mbc3(Box::new(MBC3::new(cart_info.rtc)))),
 			_ => {
 				Err("Unimplemented MBC")	//TODO: more helpful error message
 			},

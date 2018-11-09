@@ -1,8 +1,7 @@
 use super::MemoryBankController;
 
-pub struct NoMBC {
-
-}
+#[derive(Serialize, Deserialize)]
+pub struct NoMBC {}
 
 impl NoMBC {
 	pub fn new() -> NoMBC {
@@ -12,7 +11,7 @@ impl NoMBC {
 	}
 }
 
-impl MemoryBankController for NoMBC {
+impl<'de> MemoryBankController for NoMBC {
 	fn read_byte_rom(&self, rom: &Box<[u8]>, rom_size: usize, offset: u16) -> u8 {
 		let offset: usize = offset as usize;
 		if offset < rom_size {

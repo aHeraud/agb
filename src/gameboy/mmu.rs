@@ -1,6 +1,8 @@
 use gameboy::Gameboy;
 
 use gameboy::{WRAM_BANK_SIZE, WRAM_NUM_BANKS};
+use gameboy::cartridge::Cartridge;
+use gameboy::ppu::PPU;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MemoryRegion {

@@ -48,7 +48,7 @@ impl TimerRegister {
 ///             1: CPU Clock / 16
 ///             2: CPU Clock / 64
 ///             3: CPU Clock / 256
-#[derive(Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct Timer {
 	model: Mode,
 
@@ -174,7 +174,7 @@ impl Timer {
 						// http://gbdev.gg8.se/wiki/articles/Timer_Obscure_Behaviour
 						let old: bool = (self.tac & 4 != 0) & (self.div & FREQ[(self.tac & 3) as usize] != 0);
 						let new: bool = (value & 4 != 0) & (self.div & FREQ[(value & 3) as usize] != 0);
-						if(old && !new) {
+						if old && !new {
 							// falling edge increments clock
 							self.tima += 1;
 							if self.tima > 0xFF {

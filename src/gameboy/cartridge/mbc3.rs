@@ -8,6 +8,7 @@ use time;
 /* What happens when you try to set the ram_bank to an invalid value (something not in the range (0h...3h)U(8h...Ch)?*/
 
 #[derive(Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Duration {
 	seconds: usize, /* 0 -  59 */
 	minutes: usize, /* 0 -  59 */
@@ -46,6 +47,7 @@ impl Duration {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct RTC {
 	last: i64, //the last time the timer was updated (unix timestamp)
 	duration: Duration,   //the value of the rtc as of the last time update was called
@@ -179,6 +181,7 @@ const RTC_H: u8 = 0x0A;
 const RTC_DL: u8 = 0x0B;
 const RTC_DH: u8 = 0x0C;
 
+#[derive(Serialize, Deserialize)]
 pub struct MBC3 {
 	rom_bank: u8,      /* current rom bank (7 bits, can't be 0) */
 	ram_bank: u8,      /* current ram bank or rtc register */

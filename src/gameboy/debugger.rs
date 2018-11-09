@@ -5,6 +5,8 @@ use gameboy::cpu::registers::{ Registers, Register, RegisterPair };
 use gameboy::mmu::Mmu;
 use gameboy::assembly;
 use gameboy::ppu::Bitmap;
+use gameboy::cartridge::Cartridge;
+use gameboy::ppu::PPU;
 
 type BreakpointCallback = FnMut(Breakpoint) + Send;
 
@@ -36,6 +38,12 @@ pub struct Debugger {
 	hit_breakpoint: bool,
 	breakpoints: Vec<Breakpoint>,
 	breakpoint_callback: Option<Box<BreakpointCallback>>,
+}
+
+impl Default for Debugger {
+	fn default() -> Self {
+		Debugger::new()
+	}
 }
 
 impl Debugger {

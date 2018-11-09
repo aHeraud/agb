@@ -15,6 +15,7 @@ use ::gameboy::Gameboy;
 /// There is a 1 M-Cycle delay at the beginning and end of the oam dma transfer when the cpu can freely access memory like the oam dma wasn't running.
 /// However, if an oam dma is started while another oam dma transfer is running, the old dma transfer will still be running in the 1 M-Cycle start up period,
 /// and the cpu won't be able to access the memory region the dma controller is reading from.
+#[derive(Serialize, Deserialize)]
 pub struct OamDmaState {
 	/// Is there currently an active oam dma transfer
 	pub active: bool,
