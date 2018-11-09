@@ -32,7 +32,7 @@ use gameboy::cpu::interrupts::Interrupt;
 use gameboy::oam_dma::{OamDmaState, OamDmaController};
 use gameboy::serial::Serial;
 pub use gameboy::joypad::Key;
-pub use gameboy::mode::{Mode, InvalidModeDiscriminant};
+pub use gameboy::mode::Mode;
 
 const IO_SIZE: usize = 128;
 
