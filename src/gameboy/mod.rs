@@ -16,6 +16,7 @@ use std::error::Error;
 use std::io::BufRead;
 use std::sync::mpsc::{Sender, Receiver};
 use std::time::Duration;
+use std::fmt;
 
 use bincode;
 
@@ -55,10 +56,19 @@ pub struct Gameboy {
 	pub oam_dma_state: OamDmaState,
 }
 
+#[derive(Debug)]
+pub struct GameboyInitializationError(String);
+impl fmt::Display for GameboyInitializationError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.0)
+	}
+}
+impl Error for GameboyInitializationError {}
+
 #[allow(dead_code)]
 impl Gameboy {
-	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Gameboy, & 'static str> {
-		let cart = try!(VirtualCartridge::new(rom, ram));
+	pub fn new(rom: Box<[u8]>, ram: Option<Box<[u8]>>) -> Result<Gameboy, GameboyInitializationError> {
+		let cart = VirtualCartridge::new(rom, ram).map_err(|e| GameboyInitializationError(format!("Failed to initialize cartridge: {}", e)))?;
 		let mode: Mode = match cart.get_cart_info().cgb {
 			true => Mode::CGB,
 			false => Mode::DMG,
