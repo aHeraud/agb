@@ -109,6 +109,9 @@ pub trait DebuggerInterface {
 	fn trace(&self) -> String;
 
 	fn get_cycle_counter(&self) -> usize;
+
+	/// Set the value of the timer divider register, including the invisible low 8-bytes
+	fn set_div(&mut self, value: u16);
 }
 
 impl DebuggerInterface for Gameboy {
@@ -470,5 +473,9 @@ impl DebuggerInterface for Gameboy {
 
 	fn get_cycle_counter(&self) -> usize {
 		self.cpu.cycle_counter
+	}
+
+	fn set_div(&mut self, value: u16) {
+		self.timer.div = value;
 	}
 }
