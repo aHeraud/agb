@@ -377,8 +377,9 @@ impl DebuggerInterface for Gameboy {
 		self.read_byte(address)
 	}
 
-	///the reson we don't just call self.write_byte here is because
-	///we want to be able to patch the cartridge rom
+	/// the reson we don't just call self.write_byte here is because
+	/// we want to be able to patch the cartridge rom
+	/// and to be able to set the value of DIV instead of resetting it to 0
 	fn write_memory(&mut self, address: u16, value: u8) {
 		match address {
 			0x0000...0x3FFF => {
@@ -393,6 +394,7 @@ impl DebuggerInterface for Gameboy {
 					rom[(address as usize) - 0x4000] = value;
 				}
 			},
+			0xFF04 => self.timer.div = (value as u16) << 8,
 			_ => { self.write_byte(address, value); },
 		}
 	}
