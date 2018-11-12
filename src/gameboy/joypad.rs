@@ -1,19 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(C)]
 pub enum Key {
-	Up, Down, Left, Right, A, B, Select, Start
-}
-
-fn get_index(key: Key) -> usize {
-	match key {
-		Key::Up => 0,
-		Key::Down => 1,
-		Key::Left => 2,
-		Key::Right => 3,
-		Key::A => 4,
-		Key::B => 5,
-		Key::Select => 6,
-		Key::Start => 7,
-	}
+	Up = 0, Down = 1, Left = 2, Right = 3, B = 4, A = 5, Select = 6, Start = 7
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,20 +22,17 @@ impl Joypad {
 
 	///Keydown event
 	pub fn keydown(&mut self, key: Key) {
-		let index = get_index(key);
-		self.keys[index] = true;
+		self.keys[key as usize] = true;
 	}
 
 	///Keyup event
 	pub fn keyup(&mut self, key: Key) {
-		let index = get_index(key);
-		self.keys[index] = false;
+		self.keys[key as usize] = false;
 	}
 
 	///Query the state of a button
 	pub fn key_state(&self, key: Key) -> bool {
-		let index = get_index(key);
-		self.keys[index]
+		self.keys[key as usize]
 	}
 
 	///Used to select buttons/dpad
@@ -71,30 +56,30 @@ impl Joypad {
 
 		let mut low = 0;
 		if self.select_button_keys {
-			if self.keys[get_index(Key::Start)] {
+			if self.keys[Key::Start as usize] {
 				low |= 8;
 			}
-			if self.keys[get_index(Key::Select)] {
+			if self.keys[Key::Select as usize] {
 				low |= 4;
 			}
-			if self.keys[get_index(Key::A)] {
+			if self.keys[Key::B as usize] {
 				low |= 2;
 			}
-			if self.keys[get_index(Key::B)] {
+			if self.keys[Key::A as usize] {
 				low |= 1;
 			}
 		}
 		else if self.select_direction_keys {
-			if self.keys[get_index(Key::Down)] {
+			if self.keys[Key::Down as usize] {
 				low |= 8;
 			}
-			if self.keys[get_index(Key::Up)] {
+			if self.keys[Key::Up as usize] {
 				low |= 4;
 			}
-			if self.keys[get_index(Key::Left)] {
+			if self.keys[Key::Left as usize] {
 				low |= 2;
 			}
-			if self.keys[get_index(Key::Right)] {
+			if self.keys[Key::Right as usize] {
 				low |= 1;
 			}
 		}
