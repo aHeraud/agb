@@ -324,6 +324,9 @@ impl Gameboy {
 		// preserve serial channel connection
 		swap(&mut state.serial.channels, &mut self.serial.channels);
 
+		// preserve debugger state
+		swap(&mut state.debugger, &mut self.debugger);
+
 		*self = state;
 		Ok(())
 	}
