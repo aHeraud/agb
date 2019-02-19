@@ -1,5 +1,3 @@
-#![feature(use_extern_macros)]
-
 #[macro_use]
 extern crate lazy_static;
 extern crate wasm_bindgen;
@@ -77,7 +75,7 @@ pub fn load_rom(rom: &[u8]) {
 			log("agb-web::load_rom - loaded rom");
 		}
 		Err(e) => {
-			error(e);
+			error(&format!("{}", e));
 			alert("Invalid rom file.");
 		}
 	}
