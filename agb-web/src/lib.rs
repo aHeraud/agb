@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate wasm_bindgen;
+extern crate web_sys;
 extern crate agb_core;
 
 use std::time::Duration;
@@ -8,6 +9,9 @@ use std::sync::{Mutex, mpsc::channel, mpsc::Receiver, mpsc::Sender};
 use std::collections::HashMap;
 
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsValue;
+
+use web_sys::CanvasRenderingContext2d;
 
 use agb_core::gameboy::{Gameboy, Key};
 
@@ -35,12 +39,6 @@ extern {
 
 	#[wasm_bindgen]
 	fn alert(s: &str);
-}
-
-#[wasm_bindgen(module = "./index")]
-extern {
-	#[wasm_bindgen]
-	fn draw(width: usize, height: usize, pixels: &[u32]);
 }
 
 lazy_static! {
@@ -99,7 +97,7 @@ pub fn keyup(keycode: u32) {
 
 /// Emulate the gameboy for a specific number of milliseconds
 #[wasm_bindgen]
-pub fn emulate(ms: u32) {
+pub fn emulate(ctx: CanvasRenderingContext2d, ms: u32) {
 	let mut opt_gameboy = GAMEBOY.lock().unwrap();
 	let event_queue = FRONTEND_EVENT_CHANNELS.1.lock().unwrap();
 
@@ -123,7 +121,30 @@ pub fn emulate(ms: u32) {
 		gameboy.emulate(Duration::from_millis(ms as u64));
 		if gameboy.get_frame_counter() != last_frame_counter {
 			//new frame waiting to be displayed
-			draw(agb_core::WIDTH, agb_core::HEIGHT, gameboy.get_framebuffer());
+			if let Err(e) = draw(ctx, agb_core::WIDTH, agb_core::HEIGHT, gameboy.get_framebuffer_mut()) {
+				error(&format!("{:?}", e));
+			}
 		}
 	}
+}
+
+fn draw(ctx: CanvasRenderingContext2d, width: usize, height: usize, pixels: &mut [u32]) -> Result<(), JsValue> {
+	use wasm_bindgen::Clamped;
+	use web_sys::ImageData;
+
+	for i in 0..pixels.len() {
+		// convert from RGBA to ARGB, and set 100% alpha
+		pixels[i] = (pixels[i] >> 8) | 0xFF000000;
+	}
+
+	// image data takes a buffer of u8's
+	let u8pixels = unsafe {
+		use std::slice;
+		slice::from_raw_parts_mut(pixels.as_mut_ptr() as *mut u8, pixels.len() * 4)
+	};
+
+	let image_data = ImageData::new_with_u8_clamped_array_and_sh(Clamped(u8pixels), width as u32, height as u32)?;
+	ctx.put_image_data(&image_data, 0.0f64, 0.0f64)?;
+
+	Ok(())
 }

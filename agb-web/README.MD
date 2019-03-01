@@ -2,22 +2,24 @@
 
 Run agb in a browser using web-assembly.
 
-To build, the following must be installed and on your path:
+## Setup:
 
-1. cargo
-2. wasm-bindgen-cli
-3. webpack
-4. webpack-cli
+1. You will need cargo and npm installed. Cargo can be installed from rustup.sh.
 
-And you need to install the wasm32-unknown-unknown target using the command `rustup target add wasm32-unknown-unknown`.
+2. Install wasm-pack by running `cargo install wasm-pack`.
 
-Then simply run build.bat/build.sh.
+3. Run `npm install` from the www folder.
 
-To run, you need to host the files in agb-web/out using a webserver that will serve the wasm file with the correct content type, and then navigate to the agb_web.html page.
+## Building:
 
-To serve the page with the nodejs serve application, for example, run
+1. Compile the rust library by runnning `wasm-pack build --release`.
 
-```
-npm install -g serve
-serve ./out
-```
+2. Execute the command `npm link` inside the pkg folder created by the previous step.
+
+3. Run `npm run build` in the www folder.
+
+## Running
+
+1. Execute `npm run start` in the www folder.
+
+2. Webpack will start a dev server and will print the address in the console for you to open in a browser.

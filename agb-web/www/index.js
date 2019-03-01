@@ -1,4 +1,4 @@
-const agb = import('./agb_web');
+const agb = import('agb-web');
 
 const FRAMERATE = 59.7;
 let canvas = document.getElementById("agb-canvas");
@@ -56,39 +56,9 @@ agb.then(agb => {
 	function emulateFrame() {
 		let milliseconds = Math.trunc(1000 / FRAMERATE);
 		let start = new Date().getTime();
-		agb.emulate(milliseconds);
+		agb.emulate(canvas.getContext("2d"), milliseconds);
 		let end = new Date().getTime();
 	}
 
 	setInterval(emulateFrame, Math.trunc(1000/FRAMERATE));
 });
-
-let imageData = null;
-let imageBuffer = null;
-let imageBufferU8 = null;
-let imageBufferU32 = null;
-
-/**
-* draw pixels to the canvas
-* assumes that pixels are in RGBA format
-* @param {Number} width
-* @param {Number} height
-* @param {Uint32Array} pixels
-*/
-export function draw(width, height, pixels) {
-	let ctx = canvas.getContext("2d");
-	if(imageData === null || imageData.width != width || imageData.height != height) {
-		imageData = ctx.createImageData(width, height);
-		imageBuffer = new ArrayBuffer(imageData.data.length);
-		imageBufferU8 = new Uint8ClampedArray(imageBuffer);
-		imageBufferU32 = new Uint32Array(imageBuffer);
-	}
-
-	for(let i = 0; i < Math.min(imageBufferU32.length, pixels.length); i += 1) {
-		//convert to ARGB
-		imageBufferU32[i] = (pixels[i] >> 8) | 0xFF000000;
-	}
-
-	imageData.data.set(imageBufferU8);
-	ctx.putImageData(imageData, 0, 0);
-}
