@@ -16,7 +16,9 @@ Run agb in a browser using web-assembly.
 
 2. Execute the command `npm link` inside the pkg folder created by the previous step.
 
-3. Run `npm run build` in the www folder.
+3. Run `npm link agb-web` in the www folder.
+
+4. Run `npm run build` in the www folder.
 
 ## Running
 
