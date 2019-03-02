@@ -4,24 +4,83 @@
 		<meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>agb-web</title>
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.min.css" integrity="sha256-zIG416V1ynj3Wgju/scU80KAEWOsO5rRLfVyRDuOv7Q=" crossorigin="anonymous" />
 		<style type="text/css">
-			.canvas-container {
-				width: 640px;
-				height: 576px;
-				text-align: center;
+			html {
+				background-color: #323232;
+			}
+
+			body {
+				height: 100%;
+			}
+
+			#agb-canvas-wrapper {
+				height: 100%;
 			}
 
 			#agb-canvas {
-				width: 100%;
+				text-align: center;
+				margin: auto;
+				position: absolute;
+				display: inline-block;
+				top: 0;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				height: 90%;
 			}
+				
+			@media (max-aspect-ratio: 4/3) {
+				#agb-canvas {
+					height: auto;
+					width: 90%;
+				}
+			}
+
+			.file-upload {
+				z-index: 1000;
+				position: relative;
+				overflow: hidden;
+				margin: 10px;
+			}
+
+			.file-upload input.file {
+				position: absolute;
+				top: 0;
+				right: 0;
+				left: 0;
+				bottom: 0;
+				margin: 0;
+				padding: 0;
+				font-size: 20px;
+				cursor: pointer;
+				opacity: 0;
+				filter: alpha(opacity=0);
+			}
+
+			.button {
+				color: #ffffff;
+				background-color: #337ab7;
+				border-color: #2e6da4;
+				display: inline-block;
+				padding: 6px 12px;
+				font-size: 14px;
+				text-align: center;
+				border: 1px solid white transparent;
+				border-radius: 4px;
+			}
+
+			.button:hover {
+				background-color: #2e6da4;
+			}
+
 		</style>
 	</head>
 	<body>
-		<div class="canvas-container" id="agb-canvas-container" tabindex="1">
-			<canvas id="agb-canvas" width="160" height="144"></canvas>
+		<div class="file-upload button">
+			<span>Load ROM</span>
+			<input id="rom" type="file" class="file"></input>
 		</div>
-		<input type="file" id="rom">Load ROM</input>
+		<canvas id="agb-canvas" width="160" height="144" tabindex="1"></canvas>
 		<script src="./bootstrap.js"></script>
 	</body>
 </html>

@@ -23,6 +23,8 @@ let keyBindings = {
 };
 
 agb.then(agb => {
+	let canvas = document.getElementById("agb-canvas");
+
 	let romInput = document.getElementById("rom");
 	romInput.addEventListener("change", onRomUpload, false);
 	function onRomUpload() {
@@ -34,19 +36,19 @@ agb.then(agb => {
 				let data = fileReader.result;
 				let array = new Uint8Array(data);
 				agb.load_rom(array);
+				canvas.focus();
 			}
 			fileReader.readAsArrayBuffer(rom);
 		}
 	}
 
-	let canvasContainer = document.getElementById("agb-canvas-container");
-	canvasContainer.addEventListener("keydown", function(event) {
+	canvas.addEventListener("keydown", function(event) {
 		let key = keyBindings[event.key];
 		if(key !== null && key !== undefined) {
 			agb.keydown(key);
 		}
 	});
-	canvasContainer.addEventListener("keyup", function(event) {
+	canvas.addEventListener("keyup", function(event) {
 		let key = keyBindings[event.key];
 		if(key !== null && key !== undefined) {
 			agb.keyup(key);
