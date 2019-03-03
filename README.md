@@ -18,6 +18,8 @@ Has a simple command line debugger (no debugger gui, yet).
 
 Run the emulator in a browser using web assembly!
 
+Demo at https://aheraud.github.io/agb/
+
 ![alt text](images/agb-web-pokemon.png "screenshot of Pokemon Red running in a browser using agb-web")
 
 ## TODO
